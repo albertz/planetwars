@@ -75,7 +75,7 @@ struct RelevantPlanetState {
 	int ships;
 };
 
-RelevantPlanetState relevatPlanetState(const Planet& p) {
+RelevantPlanetState relevantPlanetState(const Planet& p) {
 	RelevantPlanetState s;
 	s.time = 0;
 	s.ships = p.NumShips();
@@ -114,8 +114,10 @@ float averageDistToNotOwnedPlanets(const Planet& p) {
 	return 0.0f;
 }
 
+#define SHIPSNEEDEDTOCONQUER 2
+
 float rankPlanet(const Planet& p) {
-	RelevantPlanetState s = relevatPlanetState(p);
+	RelevantPlanetState s = relevantPlanetState(p);
 	Is planets; planets.reserve(_pw.NumPlanets());
 	for(int i = 0; i < _pw.NumPlanets(); ++i) {
 		if(_pw.GetPlanet(i).Owner() == 1)
@@ -132,13 +134,13 @@ float rankPlanet(const Planet& p) {
 			if(dist > time) time = dist;
 			numShips += pw.myAvailableShips[*i] - 1; // not all, keep one at least
 
-			if(numShips > s.ships) break; // we have enough together. we really must be > here
+			if(numShips >= s.ships + SHIPSNEEDEDTOCONQUER) break; // we have enough together
 		}
 		
-		if(numShips <= s.ships) return -1000.0f; // we cannot get it at all right now
+		if(numShips < s.ships + SHIPSNEEDEDTOCONQUER) return -1000.0f; // we cannot get it at all right now
 		
 		return
-		10.0f * (1.0f - float(numShips) / float(pw.myAvailableShipsNum)) +
+		10.0f * (1.0f - float(s.ships + SHIPSNEEDEDTOCONQUER) / float(pw.myAvailableShipsNum)) +
 		10.0f * expf(-float(time)*0.1f);
 	}
 	
@@ -168,10 +170,10 @@ bool DoConquerPlanet(int p) {
 	}
 	sort(planets.begin(), planets.end(), PlanetOrderByDistance(p));
 	
-	RelevantPlanetState s = relevatPlanetState(_pw.GetPlanet(p));
+	RelevantPlanetState s = relevantPlanetState(_pw.GetPlanet(p));
 	int neededShips =
 		(s.owner != 1) ?
-		(s.ships + 1) :
+		(s.ships + SHIPSNEEDEDTOCONQUER) :
 		((pw.myAvailableShipsNum - pw.myAvailableShips[p]) / 2); // "2" is just made up...
 	
 	if(neededShips <= 0)
