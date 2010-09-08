@@ -34,9 +34,9 @@ struct D {
 	// statics
 	Ps planets;
 	Ps myPlanets;
-	Fs fleets;
 	
 	// we manipulate them while giving orders
+	Fs fleets;
 	int myAvailableShipsNum;
 	std::map<int,int> myAvailableShips;
 	
@@ -195,7 +195,12 @@ bool DoConquerPlanet(int p) {
 		if(*i == p) continue; // it's the planet itself
 		
 		int sendShipsNum = std::min(pw.myAvailableShips[*i], neededShips);
+		if(sendShipsNum <= 0) continue;
+		
 		_pw.IssueOrder(*i, p, sendShipsNum);
+		int dist = _pw.Distance(*i, p);
+		pw.fleets.push_back( Fleet(1, sendShipsNum, *i, p, dist, dist) );
+		
 		pw.myAvailableShips[*i] -= sendShipsNum;
 		pw.myAvailableShipsNum -= sendShipsNum;
 		neededShips -= sendShipsNum;
