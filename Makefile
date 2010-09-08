@@ -1,9 +1,9 @@
 CC=g++
 
-all: MyBot.bin OrigMyBot.bin
+all: MyBot OrigMyBot
 
 clean:
 	rm -rf *.o *.bin
 
-MyBot.bin: MyBot.o PlanetWars.o
-OrigMyBot.bin: OrigMyBot.o PlanetWars.o
+MyBot: MyBot.o PlanetWars.o
+OrigMyBot: OrigMyBot.o PlanetWars.o

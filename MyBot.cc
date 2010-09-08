@@ -3,6 +3,7 @@
 #include <vector>
 #include <map>
 #include <cmath>
+#include <string>
 #include "PlanetWars.h"
 using namespace std;
 
@@ -34,7 +35,6 @@ struct D {
 	Ps planets;
 	Ps myPlanets;
 	Fs fleets;
-	int myShipsNum;
 	
 	// we manipulate them while giving orders
 	int myAvailableShipsNum;
@@ -47,7 +47,6 @@ struct D {
 		fleets = _pw.Fleets();
 		// TODO: what player order?
 		sort(fleets.begin(), fleets.end(), FleetOrderByTurnsRemaining());
-		myShipsNum = _pw.NumShips(1);
 		myAvailableShipsNum = 0;
 		myAvailableShips.clear();
 		for(Pit p = myPlanets.begin(); p != myPlanets.end(); ++p) {
