@@ -120,6 +120,7 @@ class Planet {
 
 class PlanetWars {
  public:
+	PlanetWars() {} // dummy
   // Initializes the game state given a string containing game state data.
   PlanetWars(const std::string& game_state);
 
