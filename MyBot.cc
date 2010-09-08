@@ -92,11 +92,12 @@ RelevantPlanetState relevantPlanetState(const Planet& p) {
 			s.ships += f->NumShips();
 		else {
 			s.ships -= f->NumShips();
-			if(s.ships < 0) { // change owner
+			if(s.ships < -1) { // change owner
 				s.ships *= -1;
-				s.ships--; // one less because of rules. what does happen with this one?
 				s.owner = f->Owner();
 			}
+			else if(s.ships == -1)
+				s.ships = 0; // seems this is a special rule?
 		}
 	}
 
