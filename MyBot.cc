@@ -39,6 +39,8 @@ struct D {
 	// we manipulate them while giving orders
 	Fs fleets;
 	int myAvailableShipsNum;
+	
+	// those will be calculated somewhere else
 	std::map<int,int> myAvailableShips;
 	std::set<int> haveSentShipsToPlanet;
 	
@@ -51,10 +53,6 @@ struct D {
 		sort(fleets.begin(), fleets.end(), FleetOrderByTurnsRemaining());
 		myAvailableShipsNum = 0;
 		myAvailableShips.clear();
-		for(Pit p = myPlanets.begin(); p != myPlanets.end(); ++p) {
-			myAvailableShipsNum += p->NumShips();
-			myAvailableShips[p->PlanetID()] = p->NumShips();
-		}
 		haveSentShipsToPlanet.clear();
 	}
 };
@@ -76,6 +74,7 @@ struct RelevantPlanetState {
 	int time;
 	int owner;
 	int ships;
+	int shipsWeCanGiveAway;
 };
 
 RelevantPlanetState relevantPlanetState(const Planet& p) {
@@ -83,7 +82,8 @@ RelevantPlanetState relevantPlanetState(const Planet& p) {
 	s.time = 0;
 	s.ships = p.NumShips();
 	s.owner = p.Owner();
-		
+	s.shipsWeCanGiveAway = s.ships;
+	
 	for(Fit f = pw.fleets.begin(); f != pw.fleets.end(); ++f) {
 		if(f->DestinationPlanet() != p.PlanetID()) continue; // not relevant
 
@@ -94,6 +94,9 @@ RelevantPlanetState relevantPlanetState(const Planet& p) {
 		if(s.owner == f->Owner())
 			s.ships += f->NumShips();
 		else {
+			if(s.owner == 1)
+				s.shipsWeCanGiveAway = min(s.shipsWeCanGiveAway, s.ships - f->NumShips());
+			
 			s.ships -= f->NumShips();
 			if(s.ships < -1) { // change owner
 				s.ships *= -1;
@@ -101,6 +104,7 @@ RelevantPlanetState relevantPlanetState(const Planet& p) {
 			}
 			else if(s.ships == -1)
 				s.ships = 0; // seems this is a special rule?
+			
 		}
 	}
 
@@ -149,17 +153,17 @@ float rankPlanet(const Planet& p) {
 		if(numShips < s.ships + SHIPSNEEDEDTOCONQUER) return -1000.0f; // we cannot get it at all right now
 		
 		return
-		10.0f * (1.0f - float(s.ships + SHIPSNEEDEDTOCONQUER) / float(pw.myAvailableShipsNum)) +
+		10.0f * float(p.GrowthRate()) * 0.2f * (1.0f - float(s.ships + SHIPSNEEDEDTOCONQUER) / float(pw.myAvailableShipsNum)) +
 		10.0f * expf(-float(time)*0.1f);
 	}
 	
-	int numShipsShouldHave = int( 0.5f * float(pw.myAvailableShipsNum) / float(pw.myPlanets.size()) );
+	int numShipsShouldHave = int( float(p.GrowthRate()) * 0.2f * float(pw.myAvailableShipsNum) / float(pw.myPlanets.size()) );
 	
 	// only send ships here if we really have enough
 	if(s.ships < numShipsShouldHave)
 		// very simple for now -- if we are closer to enemy/neutral, that's better. low priority though
 		return
-		rankPlanetPosition(p);
+		rankPlanetPosition(p) * float(p.GrowthRate()) * 0.2f;
 	
 	return 0.0f; // don't
 }
@@ -232,6 +236,17 @@ bool DoConquerPlanet(int p) {
 }
 
 void DoTurn() {
+	// myAvailableShips* is 0 here
+	// we keep so many ships so that the enemy does not take our planets away
+	for(Pit p = pw.myPlanets.begin(); p != pw.myPlanets.end(); ++p) {
+		RelevantPlanetState s = relevantPlanetState(*p);
+		if(s.shipsWeCanGiveAway > 0)
+			pw.myAvailableShips[p->PlanetID()] = s.shipsWeCanGiveAway;
+		else
+			pw.myAvailableShips[p->PlanetID()] = 0;
+		pw.myAvailableShipsNum += pw.myAvailableShips[p->PlanetID()];			
+	}
+		
 	int p = -1;
 	while((p = getBestPlanetByRank()) >= 0)
 		if(!DoConquerPlanet(p))
