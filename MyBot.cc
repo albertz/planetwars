@@ -4,6 +4,7 @@
 #include <map>
 #include <cmath>
 #include <string>
+#include <set>
 #include "PlanetWars.h"
 using namespace std;
 
@@ -39,6 +40,7 @@ struct D {
 	Fs fleets;
 	int myAvailableShipsNum;
 	std::map<int,int> myAvailableShips;
+	std::set<int> haveSentShipsToPlanet;
 	
 	void update(const std::string& map_data) {
 		_pw = PlanetWars(map_data);
@@ -53,6 +55,7 @@ struct D {
 			myAvailableShipsNum += p->NumShips();
 			myAvailableShips[p->PlanetID()] = p->NumShips();
 		}
+		haveSentShipsToPlanet.clear();
 	}
 };
 
@@ -118,6 +121,10 @@ float averageDistToNotOwnedPlanets(const Planet& p) {
 
 #define SHIPSNEEDEDTOCONQUER 2
 
+float rankPlanetPosition(const Planet& p) {
+	return expf(-averageDistToNotOwnedPlanets(p) * 0.1f);	
+}
+
 float rankPlanet(const Planet& p) {
 	RelevantPlanetState s = relevantPlanetState(p);
 	Is planets; planets.reserve(_pw.NumPlanets());
@@ -146,15 +153,23 @@ float rankPlanet(const Planet& p) {
 		10.0f * expf(-float(time)*0.1f);
 	}
 	
-	// very simple for now -- if we are closer to enemy/neutral, that's better. low priority though
-	return
-	expf(-averageDistToNotOwnedPlanets(p) * 0.1f);
+	int numShipsShouldHave = int( 0.5f * float(pw.myAvailableShipsNum) / float(pw.myPlanets.size()) );
+	
+	// only send ships here if we really have enough
+	if(s.ships < numShipsShouldHave)
+		// very simple for now -- if we are closer to enemy/neutral, that's better. low priority though
+		return
+		rankPlanetPosition(p);
+	
+	return 0.0f; // don't
 }
 
 int getBestPlanetByRank() { // only with rank > 0
 	int bestP = -1;
 	float bestR = 0.0f;
 	for(int p = 0; p < _pw.NumPlanets(); ++p) {
+		if(pw.haveSentShipsToPlanet.count(p) > 0) continue; // dont sent ships there again
+		
 		float r = rankPlanet(_pw.GetPlanet(p));
 		if(r > bestR) {
 			bestR = r;
@@ -212,6 +227,7 @@ bool DoConquerPlanet(int p) {
 		if(neededShips <= 0) break;
 	}
 	
+	pw.haveSentShipsToPlanet.insert(p);
 	return true;
 }
 
