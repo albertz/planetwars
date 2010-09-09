@@ -1,9 +1,18 @@
 CC=g++
 
-all: MyBot OrigMyBot
+all:
+	for i in *.cc; do make $${i/.cc/}; done
 
 clean:
-	rm -rf *.o *.bin
+	rm -rf *.o *Bot
 
-MyBot: MyBot.o PlanetWars.o
-OrigMyBot: OrigMyBot.o PlanetWars.o
+%.o: %.cc
+	g++ -Wall -O2 $< -c -o $@
+
+%::
+	if [ $@ != PlanetWars ]; then \
+	make PlanetWars.o && \
+	make $@.o && \
+	g++ $@.o PlanetWars.o -o $@ ;\
+	fi
+
