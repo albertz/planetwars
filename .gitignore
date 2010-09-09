@@ -1,6 +1,5 @@
 *.o
 log.txt
 .DS_Store
-MyBot
-OrigMyBot
+*Bot
 albert.zip
