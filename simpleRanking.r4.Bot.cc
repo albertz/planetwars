@@ -5,7 +5,7 @@
 #include <cmath>
 #include <string>
 #include <set>
-#include "PlanetWars.h"
+#include "game.h"
 using namespace std;
 
 typedef std::vector<Planet> Ps;
@@ -15,13 +15,13 @@ typedef Ps::iterator Pit;
 typedef Fs::iterator Fit;
 typedef Is::iterator Iit;
 
-static PlanetWars _pw;
+static Game _pw;
 
 float rankPlanet(Planet& p);
 
 struct FleetOrderByTurnsRemaining {
 	bool operator()(const Fleet& f1, const Fleet& f2) const {
-		return f1.TurnsRemaining() < f2.TurnsRemaining();
+		return f1.turnsRemaining < f2.turnsRemaining;
 	}
 };
 
@@ -45,7 +45,7 @@ struct D {
 	std::set<int> haveSentShipsToPlanet;
 	
 	void update(const std::string& map_data) {
-		_pw = PlanetWars(map_data);
+		_pw.ParseGameState(map_data);
 		planets = _pw.Planets();
 		myPlanets = _pw.MyPlanets();
 		fleets = _pw.Fleets();
@@ -62,7 +62,7 @@ struct PlanetOrderByDistance {
 	PlanetOrderByDistance(int _planetDestId) : planetDestId(_planetDestId) {}
 	
 	bool operator()(int p1, int p2) const {
-		return _pw.Distance(p1, planetDestId) < _pw.Distance(p2, planetDestId);
+		return _pw.desc.Distance(p1, planetDestId) < _pw.desc.Distance(p2, planetDestId);
 	}
 };
 
@@ -80,27 +80,27 @@ struct RelevantPlanetState {
 RelevantPlanetState relevantPlanetState(const Planet& p) {
 	RelevantPlanetState s;
 	s.time = 0;
-	s.ships = p.NumShips();
-	s.owner = p.Owner();
+	s.ships = p.numShips;
+	s.owner = p.owner;
 	s.shipsWeCanGiveAway = s.ships;
 	
 	for(Fit f = pw.fleets.begin(); f != pw.fleets.end(); ++f) {
-		if(f->DestinationPlanet() != p.PlanetID()) continue; // not relevant
+		if(f->destinationPlanet != p.planetId) continue; // not relevant
 
-		int dt = f->TurnsRemaining() - s.time;
-		s.time = f->TurnsRemaining();
-		if(s.owner > 0) s.ships += dt * p.GrowthRate();
+		int dt = f->turnsRemaining - s.time;
+		s.time = f->turnsRemaining;
+		if(s.owner > 0) s.ships += dt * p.growthRate;
 		
-		if(s.owner == f->Owner())
-			s.ships += f->NumShips();
+		if(s.owner == f->owner)
+			s.ships += f->numShips;
 		else {
 			if(s.owner == 1)
-				s.shipsWeCanGiveAway = min(s.shipsWeCanGiveAway, s.ships - f->NumShips());
+				s.shipsWeCanGiveAway = min(s.shipsWeCanGiveAway, s.ships - f->numShips);
 			
-			s.ships -= f->NumShips();
+			s.ships -= f->numShips;
 			if(s.ships < -1) { // change owner
 				s.ships *= -1;
-				s.owner = f->Owner();
+				s.owner = f->owner;
 			}
 			else if(s.ships == -1)
 				s.ships = 0; // seems this is a special rule?
@@ -115,9 +115,9 @@ float averageDistToNotOwnedPlanets(const Planet& p) {
 	int num = 0;
 	float sum = 0;
 	for(Pit i = pw.planets.begin(); i != pw.planets.end(); ++i) {
-		if(i->Owner() == 1) continue;
+		if(i->owner == 1) continue;
 		num++;
-		sum += _pw.Distance(p.PlanetID(), i->PlanetID());
+		sum += _pw.desc.Distance(p.planetId, i->planetId);
 	}
 	if(num > 0) return sum / float(num);
 	return 0.0f;
@@ -132,18 +132,18 @@ float rankPlanetPosition(const Planet& p) {
 float rankPlanet(const Planet& p) {
 	RelevantPlanetState s = relevantPlanetState(p);
 	Is planets; planets.reserve(_pw.NumPlanets());
-	for(int i = 0; i < _pw.NumPlanets(); ++i) {
-		if(_pw.GetPlanet(i).Owner() == 1)
+	for(size_t i = 0; i < _pw.NumPlanets(); ++i) {
+		if(_pw.state.planets[i].owner == 1)
 			planets.push_back(i);
 	}
-	sort(planets.begin(), planets.end(), PlanetOrderByDistance(p.PlanetID()));
+	sort(planets.begin(), planets.end(), PlanetOrderByDistance(p.planetId));
 	
 	if(s.owner != 1) {
 		int numShips = 0;
 		int time = 0;
 		for(Iit i = planets.begin(); i != planets.end(); ++i) {
-			if(*i == p.PlanetID()) continue; // it is not ours anymore
-			int dist = _pw.Distance(*i, p.PlanetID());
+			if(*i == p.planetId) continue; // it is not ours anymore
+			int dist = _pw.desc.Distance(*i, p.planetId);
 			if(dist > time) time = dist;
 			numShips += pw.myAvailableShips[*i] - 1; // not all, keep one at least
 
@@ -153,17 +153,17 @@ float rankPlanet(const Planet& p) {
 		if(numShips < s.ships + SHIPSNEEDEDTOCONQUER) return -1000.0f; // we cannot get it at all right now
 		
 		return
-		10.0f * float(p.GrowthRate()) * 0.2f * (1.0f - float(s.ships + SHIPSNEEDEDTOCONQUER) / float(pw.myAvailableShipsNum)) +
+		10.0f * float(p.growthRate) * 0.2f * (1.0f - float(s.ships + SHIPSNEEDEDTOCONQUER) / float(pw.myAvailableShipsNum)) +
 		10.0f * expf(-float(time)*0.1f);
 	}
 	
-	int numShipsShouldHave = int( float(p.GrowthRate()) * 0.2f * float(pw.myAvailableShipsNum) / float(pw.myPlanets.size()) );
+	int numShipsShouldHave = int( float(p.growthRate) * 0.2f * float(pw.myAvailableShipsNum) / float(pw.myPlanets.size()) );
 	
 	// only send ships here if we really have enough
 	if(s.ships < numShipsShouldHave)
 		// very simple for now -- if we are closer to enemy/neutral, that's better. low priority though
 		return
-		rankPlanetPosition(p) * float(p.GrowthRate()) * 0.2f;
+		rankPlanetPosition(p) * float(p.growthRate) * 0.2f;
 	
 	return 0.0f; // don't
 }
@@ -171,7 +171,7 @@ float rankPlanet(const Planet& p) {
 int getBestPlanetByRank() { // only with rank > 0
 	int bestP = -1;
 	float bestR = 0.0f;
-	for(int p = 0; p < _pw.NumPlanets(); ++p) {
+	for(size_t p = 0; p < _pw.NumPlanets(); ++p) {
 		if(pw.haveSentShipsToPlanet.count(p) > 0) continue; // dont sent ships there again
 		
 		float r = rankPlanet(_pw.GetPlanet(p));
@@ -185,8 +185,8 @@ int getBestPlanetByRank() { // only with rank > 0
 
 bool DoConquerPlanet(int p) {
 	Is planets; planets.reserve(_pw.NumPlanets());
-	for(int i = 0; i < _pw.NumPlanets(); ++i) {
-		if(_pw.GetPlanet(i).Owner() == 1)
+	for(size_t i = 0; i < _pw.NumPlanets(); ++i) {
+		if(_pw.state.planets[i].owner == 1)
 			planets.push_back(i);
 	}
 	sort(planets.begin(), planets.end(), PlanetOrderByDistance(p));
@@ -221,7 +221,7 @@ bool DoConquerPlanet(int p) {
 		if(sendShipsNum <= 0) continue;
 		
 		_pw.IssueOrder(*i, p, sendShipsNum);
-		int dist = _pw.Distance(*i, p);
+		int dist = _pw.desc.Distance(*i, p);
 		pw.fleets.push_back( Fleet(1, sendShipsNum, *i, p, dist, dist) );
 		
 		pw.myAvailableShips[*i] -= sendShipsNum;
@@ -241,10 +241,10 @@ void DoTurn() {
 	for(Pit p = pw.myPlanets.begin(); p != pw.myPlanets.end(); ++p) {
 		RelevantPlanetState s = relevantPlanetState(*p);
 		if(s.shipsWeCanGiveAway > 0)
-			pw.myAvailableShips[p->PlanetID()] = s.shipsWeCanGiveAway;
+			pw.myAvailableShips[p->planetId] = s.shipsWeCanGiveAway;
 		else
-			pw.myAvailableShips[p->PlanetID()] = 0;
-		pw.myAvailableShipsNum += pw.myAvailableShips[p->PlanetID()];			
+			pw.myAvailableShips[p->planetId] = 0;
+		pw.myAvailableShipsNum += pw.myAvailableShips[p->planetId];
 	}
 		
 	int p = -1;
@@ -256,22 +256,22 @@ void DoTurn() {
 // This is just the main game loop that takes care of communicating with the
 // game engine for you. You don't have to understand or change the code below.
 int main(int argc, char *argv[]) {
-  std::string current_line;
-  std::string map_data;
-  while (true) {
-    int c = std::cin.get();
-    current_line += (char)c;
-    if (c == '\n') {
-      if (current_line.length() >= 2 && current_line.substr(0, 2) == "go") {
-		pw.update(map_data);
-		map_data = "";
-        DoTurn();
-		_pw.FinishTurn();
-      } else {
-        map_data += current_line;
-      }
-      current_line = "";
-    }
-  }
-  return 0;
+	std::string current_line;
+	std::string map_data;
+	while (true) {
+		int c = std::cin.get();
+		current_line += (char)c;
+		if (c == '\n') {
+			if (current_line.length() >= 2 && current_line.substr(0, 2) == "go") {
+				pw.update(map_data);
+				map_data = "";
+				DoTurn();
+				_pw.FinishTurn();
+			} else {
+				map_data += current_line;
+			}
+			current_line = "";
+		}
+	}
+	return 0;
 }
