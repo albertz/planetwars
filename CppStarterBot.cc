@@ -21,25 +21,25 @@ void DoTurn(const PlanetWars& pw) {
   double source_score = -999999.0;
   int source_num_ships = 0;
   std::vector<Planet> my_planets = pw.MyPlanets();
-  for (int i = 0; i < my_planets.size(); ++i) {
+  for (size_t i = 0; i < my_planets.size(); ++i) {
     const Planet& p = my_planets[i];
-    double score = (double)p.NumShips();
+    double score = (double)p.numShips;
     if (score > source_score) {
       source_score = score;
-      source = p.PlanetID();
-      source_num_ships = p.NumShips();
+      source = p.planetId;
+      source_num_ships = p.numShips;
     }
   }
   // (3) Find the weakest enemy or neutral planet.
   int dest = -1;
   double dest_score = -999999.0;
   std::vector<Planet> not_my_planets = pw.NotMyPlanets();
-  for (int i = 0; i < not_my_planets.size(); ++i) {
+  for (size_t i = 0; i < not_my_planets.size(); ++i) {
     const Planet& p = not_my_planets[i];
-    double score = 1.0 / (1 + p.NumShips());
+    double score = 1.0 / (1 + p.numShips);
     if (score > dest_score) {
       dest_score = score;
-      dest = p.PlanetID();
+      dest = p.planetId;
     }
   }
   // (4) Send half the ships from my strongest planet to the weakest
