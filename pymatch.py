@@ -10,7 +10,9 @@ botTimeout = 100000
 maxTurns = 200 # like official
 logFile = "log.txt"
 
-bots = ["./" + b for b in glob("*Bot")] + [ "java -jar " + b for b in glob("example_bots/*.jar") ]
+bots = ["./" + b for b in glob("*Bot")]
+bots += [ "./" + b for b in filter(lambda x: not "." in x, glob("planetwars/Bot*")) ]
+#bots += [ "java -jar " + b for b in glob("example_bots/*.jar") ]
 maps = glob("maps/*.txt")
 
 def startMatch(bot1, bot2, m):
