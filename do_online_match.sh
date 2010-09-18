@@ -1,5 +1,9 @@
 
+ip=$1
+[ $ip = "" ] && ip=213.3.30.106
+bot=./simpleRankingBot
+
 while true; do
-	./tcp 213.3.30.106 9999 albert ./MyBot | grep "against";
+	./tcp $ip 19999 albert $bot | grep "against";
 	sleep 5;
 done
