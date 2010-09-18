@@ -10,6 +10,9 @@
 		239182EC124526F9002C2060 /* simpleRankingBot.cc in Sources */ = {isa = PBXBuildFile; fileRef = 239182D2124522D7002C2060 /* simpleRankingBot.cc */; };
 		239182F412452751002C2060 /* game.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 239182F312452751002C2060 /* game.cpp */; };
 		239182F812452772002C2060 /* utils.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 239182F712452772002C2060 /* utils.cpp */; };
+		239183081245290B002C2060 /* game.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 239182F312452751002C2060 /* game.cpp */; };
+		239183091245290B002C2060 /* utils.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 239182F712452772002C2060 /* utils.cpp */; };
+		2391831112452A6B002C2060 /* astarBot.cc in Sources */ = {isa = PBXBuildFile; fileRef = 2391831012452A6B002C2060 /* astarBot.cc */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -17,10 +20,19 @@
 		239182D7124524D7002C2060 /* simpleRankingBot */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = simpleRankingBot; sourceTree = BUILT_PRODUCTS_DIR; };
 		239182F312452751002C2060 /* game.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = game.cpp; path = "../planet_wars-cpp/game.cpp"; sourceTree = SOURCE_ROOT; };
 		239182F712452772002C2060 /* utils.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = utils.cpp; path = "../planet_wars-cpp/utils.cpp"; sourceTree = SOURCE_ROOT; };
+		2391830E1245290B002C2060 /* astarBot */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = astarBot; sourceTree = BUILT_PRODUCTS_DIR; };
+		2391831012452A6B002C2060 /* astarBot.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = astarBot.cc; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		239182D5124524D7002C2060 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		2391830A1245290B002C2060 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -42,6 +54,7 @@
 		08FB7795FE84155DC02AAC07 /* Source */ = {
 			isa = PBXGroup;
 			children = (
+				2391831012452A6B002C2060 /* astarBot.cc */,
 				239182F712452772002C2060 /* utils.cpp */,
 				239182F312452751002C2060 /* game.cpp */,
 				239182D2124522D7002C2060 /* simpleRankingBot.cc */,
@@ -53,6 +66,7 @@
 			isa = PBXGroup;
 			children = (
 				239182D7124524D7002C2060 /* simpleRankingBot */,
+				2391830E1245290B002C2060 /* astarBot */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -76,6 +90,22 @@
 			productReference = 239182D7124524D7002C2060 /* simpleRankingBot */;
 			productType = "com.apple.product-type.tool";
 		};
+		239183051245290B002C2060 /* astarBot */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 2391830B1245290B002C2060 /* Build configuration list for PBXNativeTarget "astarBot" */;
+			buildPhases = (
+				239183061245290B002C2060 /* Sources */,
+				2391830A1245290B002C2060 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = astarBot;
+			productName = simpleRankingBot;
+			productReference = 2391830E1245290B002C2060 /* astarBot */;
+			productType = "com.apple.product-type.tool";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -89,6 +119,7 @@
 			projectRoot = "";
 			targets = (
 				239182D6124524D7002C2060 /* simpleRankingBot */,
+				239183051245290B002C2060 /* astarBot */,
 			);
 		};
 /* End PBXProject section */
@@ -101,6 +132,16 @@
 				239182EC124526F9002C2060 /* simpleRankingBot.cc in Sources */,
 				239182F412452751002C2060 /* game.cpp in Sources */,
 				239182F812452772002C2060 /* utils.cpp in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		239183061245290B002C2060 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				239183081245290B002C2060 /* game.cpp in Sources */,
+				239183091245290B002C2060 /* utils.cpp in Sources */,
+				2391831112452A6B002C2060 /* astarBot.cc in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -165,6 +206,36 @@
 			};
 			name = Release;
 		};
+		2391830C1245290B002C2060 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				COPY_PHASE_STRIP = NO;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_ENABLE_FIX_AND_CONTINUE = YES;
+				GCC_MODEL_TUNING = G5;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				INSTALL_PATH = /usr/local/bin;
+				PREBINDING = NO;
+				PRODUCT_NAME = astarBot;
+			};
+			name = Debug;
+		};
+		2391830D1245290B002C2060 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				COPY_PHASE_STRIP = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				GCC_ENABLE_FIX_AND_CONTINUE = NO;
+				GCC_MODEL_TUNING = G5;
+				INSTALL_PATH = /usr/local/bin;
+				PREBINDING = NO;
+				PRODUCT_NAME = astarBot;
+				ZERO_LINK = NO;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -182,6 +253,15 @@
 			buildConfigurations = (
 				239182D9124524D8002C2060 /* Debug */,
 				239182DA124524D8002C2060 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		2391830B1245290B002C2060 /* Build configuration list for PBXNativeTarget "astarBot" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				2391830C1245290B002C2060 /* Debug */,
+				2391830D1245290B002C2060 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
