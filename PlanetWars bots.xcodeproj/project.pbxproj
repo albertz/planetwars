@@ -1,0 +1,192 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 45;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		239182EC124526F9002C2060 /* simpleRankingBot.cc in Sources */ = {isa = PBXBuildFile; fileRef = 239182D2124522D7002C2060 /* simpleRankingBot.cc */; };
+		239182F412452751002C2060 /* game.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 239182F312452751002C2060 /* game.cpp */; };
+		239182F812452772002C2060 /* utils.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 239182F712452772002C2060 /* utils.cpp */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		239182D2124522D7002C2060 /* simpleRankingBot.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = simpleRankingBot.cc; sourceTree = "<group>"; };
+		239182D7124524D7002C2060 /* simpleRankingBot */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = simpleRankingBot; sourceTree = BUILT_PRODUCTS_DIR; };
+		239182F312452751002C2060 /* game.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = game.cpp; path = "../planet_wars-cpp/game.cpp"; sourceTree = SOURCE_ROOT; };
+		239182F712452772002C2060 /* utils.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = utils.cpp; path = "../planet_wars-cpp/utils.cpp"; sourceTree = SOURCE_ROOT; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		239182D5124524D7002C2060 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		08FB7794FE84155DC02AAC07 /* PlanetWars bots */ = {
+			isa = PBXGroup;
+			children = (
+				08FB7795FE84155DC02AAC07 /* Source */,
+				1AB674ADFE9D54B511CA2CBB /* Products */,
+			);
+			name = "PlanetWars bots";
+			sourceTree = "<group>";
+		};
+		08FB7795FE84155DC02AAC07 /* Source */ = {
+			isa = PBXGroup;
+			children = (
+				239182F712452772002C2060 /* utils.cpp */,
+				239182F312452751002C2060 /* game.cpp */,
+				239182D2124522D7002C2060 /* simpleRankingBot.cc */,
+			);
+			name = Source;
+			sourceTree = "<group>";
+		};
+		1AB674ADFE9D54B511CA2CBB /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				239182D7124524D7002C2060 /* simpleRankingBot */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		239182D6124524D7002C2060 /* simpleRankingBot */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 239182DC124524EA002C2060 /* Build configuration list for PBXNativeTarget "simpleRankingBot" */;
+			buildPhases = (
+				239182D4124524D7002C2060 /* Sources */,
+				239182D5124524D7002C2060 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = simpleRankingBot;
+			productName = simpleRankingBot;
+			productReference = 239182D7124524D7002C2060 /* simpleRankingBot */;
+			productType = "com.apple.product-type.tool";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		08FB7793FE84155DC02AAC07 /* Project object */ = {
+			isa = PBXProject;
+			buildConfigurationList = 1DEB923508733DC60010E9CD /* Build configuration list for PBXProject "PlanetWars bots" */;
+			compatibilityVersion = "Xcode 3.1";
+			hasScannedForEncodings = 1;
+			mainGroup = 08FB7794FE84155DC02AAC07 /* PlanetWars bots */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				239182D6124524D7002C2060 /* simpleRankingBot */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		239182D4124524D7002C2060 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				239182EC124526F9002C2060 /* simpleRankingBot.cc in Sources */,
+				239182F412452751002C2060 /* game.cpp in Sources */,
+				239182F812452772002C2060 /* utils.cpp in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		1DEB923608733DC60010E9CD /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = "$(ARCHS_STANDARD_32_64_BIT)";
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = planetwars;
+				ONLY_ACTIVE_ARCH = YES;
+				PREBINDING = NO;
+				SDKROOT = macosx10.6;
+			};
+			name = Debug;
+		};
+		1DEB923708733DC60010E9CD /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = "$(ARCHS_STANDARD_32_64_BIT)";
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = planetwars;
+				PREBINDING = NO;
+				SDKROOT = macosx10.6;
+			};
+			name = Release;
+		};
+		239182D9124524D8002C2060 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				COPY_PHASE_STRIP = NO;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_ENABLE_FIX_AND_CONTINUE = YES;
+				GCC_MODEL_TUNING = G5;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				INSTALL_PATH = /usr/local/bin;
+				PREBINDING = NO;
+				PRODUCT_NAME = simpleRankingBot;
+			};
+			name = Debug;
+		};
+		239182DA124524D8002C2060 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				COPY_PHASE_STRIP = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				GCC_ENABLE_FIX_AND_CONTINUE = NO;
+				GCC_MODEL_TUNING = G5;
+				INSTALL_PATH = /usr/local/bin;
+				PREBINDING = NO;
+				PRODUCT_NAME = simpleRankingBot;
+				ZERO_LINK = NO;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		1DEB923508733DC60010E9CD /* Build configuration list for PBXProject "PlanetWars bots" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				1DEB923608733DC60010E9CD /* Debug */,
+				1DEB923708733DC60010E9CD /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		239182DC124524EA002C2060 /* Build configuration list for PBXNativeTarget "simpleRankingBot" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				239182D9124524D8002C2060 /* Debug */,
+				239182DA124524D8002C2060 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 08FB7793FE84155DC02AAC07 /* Project object */;
+}
