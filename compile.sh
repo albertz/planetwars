@@ -43,6 +43,6 @@ for f in *Bot.cc; do
 	ofile="build/${f/.cc/.o}"
 	target="${f/.cc/}"
 	deps=($ofile planetwars/utils.o planetwars/game.o)
-	isUpToDate_obj $target $deps && continue
+	isUpToDate $target $deps && continue
 	exec g++ $deps $CFLAGS -o $target
 done
