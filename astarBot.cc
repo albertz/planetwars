@@ -6,7 +6,10 @@
 #include <string>
 #include <set>
 #include <tr1/memory>
+#include "SimpleBimap.h"
 #include "game.h"
+#include "vec.h"
+
 using namespace std;
 
 typedef std::vector<Planet> Ps;
@@ -36,31 +39,51 @@ struct Transition {
 struct Node {
 	int deltaTime;
 	GameState state;
-	double costToGetHere;
 	std::set<Transition> transitions;
 };
 
-struct Graph {
-	std::set<NodeP> nodes;
-	NodeP startNode;
+struct NodeScore : VecD {
+	// must be >= 0
+
+	double eval() const {
+		return (x + y) / (1.0 + abs(x - y));
+	}
+	bool operator<(const NodeScore& c) const {
+		return eval() < c.eval();
+	}
 };
 
-void initGraph(Graph& g, const GameState& initialState) {
-	NodeP node = new Node;
-	node->deltaTime = 0;
-	node->state = initialState;
-	node->costToGetHere = 0;
-	g.startNode = node;
+struct Graph {
+	typedef Bimap<NodeScore, NodeP> Nodes;
+	Nodes nodes; // index/order both by nodes and by cost
+	Nodes::EntryP startNode;
+};
+
+int maxForwardTurns = 200;
+
+NodeScore estimateRest(const NodeP& node) {
+	NodeScore score;
+	score.x = node->state.Production(1, game.desc);
+	score.y = node->state.Production(2, game.desc);
+	score *= maxForwardTurns - node->deltaTime;
+	return score;
 }
 
-void searchNextNode(Graph& g, int maxForwardTurns) {
+void initGraph(Graph& g, const GameState& initialState) {
+	NodeP node(new Node);
+	node->deltaTime = 0;
+	node->state = initialState;
+	g.startNode = g.nodes.insert( estimateRest(node), node );
+}
+
+void searchNextNode(Graph& g) {
 	
 }
 
 
 
 void DoTurn() {
-	// myAvailableShips* is 0 here
+/*	// myAvailableShips* is 0 here
 	// we keep so many ships so that the enemy does not take our planets away
 	for(Pit p = pw.myPlanets.begin(); p != pw.myPlanets.end(); ++p) {
 		RelevantPlanetState s = relevantPlanetState(*p);
@@ -74,7 +97,7 @@ void DoTurn() {
 	int p = -1;
 	while((p = getBestPlanetByRank()) >= 0)
 		if(!DoConquerPlanet(p))
-			return;
+			return; */
 }
 
 // This is just the main game loop that takes care of communicating with the
@@ -88,10 +111,10 @@ int main(int argc, char *argv[]) {
 		current_line += (char)(unsigned char)c;
 		if (c == '\n') {
 			if (current_line.length() >= 2 && current_line.substr(0, 2) == "go") {
-				pw.update(map_data);
+				//pw.update(map_data);
 				map_data = "";
 				DoTurn();
-				_pw.FinishTurn();
+				//_pw.FinishTurn();
 			} else {
 				map_data += current_line;
 			}
