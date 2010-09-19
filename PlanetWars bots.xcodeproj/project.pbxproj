@@ -22,6 +22,7 @@
 		239182F712452772002C2060 /* utils.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = utils.cpp; path = "../planet_wars-cpp/utils.cpp"; sourceTree = SOURCE_ROOT; };
 		2391830E1245290B002C2060 /* astarBot */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = astarBot; sourceTree = BUILT_PRODUCTS_DIR; };
 		2391831012452A6B002C2060 /* astarBot.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = astarBot.cc; sourceTree = "<group>"; };
+		239183D71246592F002C2060 /* SimpleBimap.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SimpleBimap.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -54,6 +55,7 @@
 		08FB7795FE84155DC02AAC07 /* Source */ = {
 			isa = PBXGroup;
 			children = (
+				239183D71246592F002C2060 /* SimpleBimap.h */,
 				2391831012452A6B002C2060 /* astarBot.cc */,
 				239182F712452772002C2060 /* utils.cpp */,
 				239182F312452751002C2060 /* game.cpp */,
