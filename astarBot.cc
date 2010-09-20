@@ -23,6 +23,11 @@ typedef Fs::iterator Fit;
 typedef Is::iterator Iit;
 
 static Game game;
+static long startRoundTime;
+
+static bool shouldStopRound() {
+	return currentTimeMillis() - startRoundTime >= 900;
+}
 
 struct PlanetOrderByDistance {
 	int planetDestId;
@@ -229,6 +234,7 @@ void expandNextNodesForPlanet(Turn turn, const NodeP& node, Graph& g) {
 					turn.shipsAmount = numShips + stateWithFleets.fleets.back().numShips;
 					expandNextNodesForDT(turn, node, stateWithFleets, g);
 
+					if(shouldStopRound()) return;
 					if(stateWithFleets.fleets.back().numShips == 1) break;
 					stateWithFleets.fleets.back().numShips--;
 					stateWithFleets.planets[*i].numShips++;
@@ -247,6 +253,7 @@ void expandNextNodesForPlanet(Turn turn, const NodeP& node, Graph& g) {
 				turn.shipsAmount = numShips + stateWithFleets.fleets.back().numShips;
 				expandNextNodesForDT(turn, node, stateWithFleets, g);
 				
+				if(shouldStopRound()) return;
 				if(stateWithFleets.planets[*i].numShips == 0) break;
 				stateWithFleets.fleets.back().numShips++;
 				stateWithFleets.planets[*i].numShips--;
@@ -254,6 +261,8 @@ void expandNextNodesForPlanet(Turn turn, const NodeP& node, Graph& g) {
 		}
 		
 		numShips += stateWithFleets.fleets.back().numShips;
+		
+		if(shouldStopRound()) return;
 	}
 }
 
@@ -267,28 +276,32 @@ void expandNextNodesForPlayer(Turn turn, const NodeP& node, Graph& g) {
 void expandNextNodes(Graph& g) {
 	assert(g.nodes.map1.size() > 0);
 	NodeP node = getHighestScoredNode(g);
-	g.erase(node); // remove this node from search set. will still be in transition paths
 	
 	Turn turn;
-	if(node->deltaTime.x < node->deltaTime.y)
+	if(node->deltaTime.x <= node->deltaTime.y)
 		turn.player = 1;
 	else
 		turn.player = 2;
 	expandNextNodesForPlayer(turn, node, g);	
+
+	if(shouldStopRound()) return; // if we have stopped calc in the middle, just keep
+	g.erase(node); // remove this node from search set. will still be in transition paths
 }
 
 
 
 void DoTurn() {
-	long startCalcTime = currentTimeMillis();
+	startRoundTime = currentTimeMillis();
 	
 	Graph g;
 	initGraph(g, game.state);
 	
-	while(currentTimeMillis() - startCalcTime < 900) {
+	while(!shouldStopRound()) {
 		expandNextNodes(g);
-		cerr << game.numTurns << ":" << g.nodes.size() << endl;
-		if(g.nodes.size() == 0) return; // error
+		if(g.nodes.size() == 0) {
+			cerr << game.numTurns << " error: " << g.nodes.size() << endl;			
+			return; // error
+		}
 	}
 	
 	typedef std::list<Transition> Path;
@@ -300,19 +313,23 @@ void DoTurn() {
 		path.push_front(t);
 		node = t.source;
 	}
+	cerr << "best path len: " << path.size() << endl;
 	
 	GameState wantedState = game.state;
+	int dt = 0;
 	for(Path::iterator i = path.begin(); i != path.end(); ++i) {
-		if(i->turn.deltaTime == 0) continue;
 		wantedState = i->target->state;
-		break;
+		dt = i->turn.deltaTime;
+		if(dt > 0) break;
 	}
 	
 	for(size_t i = 0; i < wantedState.fleets.size(); ++i) {
 		const Fleet& fleet = wantedState.fleets[i];
 		if(fleet.owner != 1) continue; // dont care
-		// turnsRemaining + 1 = totalTripLength -> we just have created it
-		if(fleet.turnsRemaining + 1 != fleet.totalTripLength) continue;
+		cerr << "fleet: " << i << endl;
+
+		// turnsRemaining + dt = totalTripLength -> we just have created it
+		if(fleet.turnsRemaining + dt != fleet.totalTripLength) continue;
 
 		game.IssueOrder(fleet.sourcePlanet, fleet.destinationPlanet, fleet.numShips);
 	}
