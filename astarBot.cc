@@ -110,9 +110,12 @@ void initGraph(Graph& g, const GameState& initialState) {
 	node->state = initialState;
 	node->score = estimateRest(node);
 	g.startNode = g.insert(node);
+	assert(g.nodes.map1.size() == 1);
+	assert(g.nodes.map2.size() == 1);
 }
 
 NodeP getHighestScoredNode(Graph& g) {
+	assert(g.nodes.map1.size() >= 1);
 	Graph::Nodes::T1Map::reverse_iterator i = g.nodes.map1.rbegin();
 	assert(i != g.nodes.map1.rend()); // there must at least be one entry
 	return i->second->second();
@@ -225,6 +228,7 @@ void expandNextNodesForPlanet(Turn turn, const NodeP& node, Graph& g) {
 					turn.shipsAmount = numShips + stateWithFleets.fleets.back().numShips;
 					expandNextNodesForDT(turn, node, stateWithFleets, g);
 
+					if(stateWithFleets.fleets.back().numShips == 0) break;
 					stateWithFleets.fleets.back().numShips--;
 					state = stateWithFleets;
 					state.DoTimeSteps(dist, game.desc);
@@ -257,6 +261,7 @@ void expandNextNodesForPlayer(Turn turn, const NodeP& node, Graph& g) {
 }
 
 void expandNextNodes(Graph& g) {
+	assert(g.nodes.map1.size() > 0);
 	NodeP node = getHighestScoredNode(g);
 	g.erase(node); // remove this node from search set. will still be in transition paths
 	
@@ -278,6 +283,7 @@ void DoTurn() {
 	
 	while(currentTimeMillis() - startCalcTime < 900) {
 		expandNextNodes(g);
+		if(g.nodes.size() == 0) return; // error
 	}
 	
 	typedef std::list<Transition> Path;

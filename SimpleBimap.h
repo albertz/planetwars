@@ -13,6 +13,7 @@
 #include <utility>
 #include <map>
 #include <tr1/memory>
+#include <cassert>
 
 template<typename Parent, typename T, void (Parent::*Setter)(T), T (Parent::*Getter)()>
 struct Property {
@@ -64,6 +65,8 @@ public:
 		new Entry(*this, v1, v2, entry);
 		return entry;
 	}
+	
+	size_t size() { assert(map1.size() == map2.size()); return map1.size(); }
 	
 	EntryP find1(T1 v) {
 		T1Iter i = map1.find(v);
