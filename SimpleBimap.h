@@ -29,12 +29,14 @@ public:
 	typedef std::tr1::shared_ptr<Entry> EntryP;	
 	typedef std::multimap<T1, EntryP> T1Map;
 	typedef std::multimap<T2, EntryP> T2Map;
+	typedef typename T1Map::iterator T1Iter;
+	typedef typename T2Map::iterator T2Iter;
 
 	class Entry {
 	private:
 		Bimap& bimap;
-		typename T1Map::iterator it1;
-		typename T2Map::iterator it2;
+		T1Iter it1;
+		T2Iter it2;
 		
 		void set1(T1 v) { bimap.map1.erase(it1); it1 = bimap.map1.insert(typename T1Map::value_type(v, it2->second)); }
 		void set2(T2 v) { bimap.map2.erase(it2); it2 = bimap.map2.insert(typename T2Map::value_type(v, it1->second)); }
@@ -60,13 +62,13 @@ public:
 	}
 	
 	EntryP find1(T1 v) {
-		typename T1Map::iterator i = map1.find(v);
+		T1Iter i = map1.find(v);
 		if(i == map1.end()) return NULL;
 		return i->second;
 	}
 
 	EntryP find2(T2 v) {
-		typename T2Map::iterator i = map2.find(v);
+		T2Iter i = map2.find(v);
 		if(i == map2.end()) return NULL;
 		return i->second;
 	}
