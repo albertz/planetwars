@@ -6,6 +6,7 @@
 #include <string>
 #include <set>
 #include <tr1/memory>
+#include <cassert>
 #include "SimpleBimap.h"
 #include "game.h"
 #include "vec.h"
@@ -21,11 +22,23 @@ typedef Is::iterator Iit;
 
 static Game game;
 
+struct PlanetOrderByDistance {
+	int planetDestId;
+	PlanetOrderByDistance(int _planetDestId) : planetDestId(_planetDestId) {}
+	
+	bool operator()(int p1, int p2) const {
+		return game.desc.Distance(p1, planetDestId) < game.desc.Distance(p2, planetDestId);
+	}
+};
+
+
+
+
 struct Turn {
 	int player;
-	int deltaTime;
 	int destPlanet;
 	int shipsAmount;
+	int deltaTime;
 };
 
 struct Node;
@@ -37,20 +50,14 @@ struct Transition {
 };
 
 struct Node {
-	int deltaTime;
+	Vec deltaTime; // per player
 	GameState state;
 	std::set<Transition> transitions;
 };
 
-struct NodeScore : VecD {
-	// must be >= 0
-
-	double eval() const {
-		return (x + y) / (1.0 + abs(x - y));
-	}
-	bool operator<(const NodeScore& c) const {
-		return eval() < c.eval();
-	}
+struct NodeScore : VecD { // must be >= 0
+	double eval() const { return (x + y) / (1.0 + abs(x - y)); }
+	bool operator<(const NodeScore& c) const { return eval() < c.eval(); }
 };
 
 struct Graph {
@@ -61,23 +68,174 @@ struct Graph {
 
 int maxForwardTurns = 200;
 
+// this must be an over-estimation, i.e. >= the real value for all possibilities
 NodeScore estimateRest(const NodeP& node) {
 	NodeScore score;
-	score.x = node->state.Production(1, game.desc);
-	score.y = node->state.Production(2, game.desc);
-	score *= maxForwardTurns - node->deltaTime;
+
+	GameState state = node->state;
+	int time = std::min(node->deltaTime.x, node->deltaTime.y);
+	while(state.fleets.size() > 0 && time < maxForwardTurns) {
+		score.x += state.Production(1, game.desc);
+		score.y += state.Production(2, game.desc);
+		state.DoTimeStep(game.desc);
+		time++;
+	}
+	
+	if(time < maxForwardTurns) {
+		double neutProd = state.Production(0, game.desc); // assume that each player got all the rest
+		score.x += neutProd + state.Production(1, game.desc);
+		score.y += neutProd + state.Production(2, game.desc);
+		score *= maxForwardTurns - time;
+	}
 	return score;
 }
 
 void initGraph(Graph& g, const GameState& initialState) {
 	NodeP node(new Node);
-	node->deltaTime = 0;
 	node->state = initialState;
 	g.startNode = g.nodes.insert( estimateRest(node), node );
 }
 
-void searchNextNode(Graph& g) {
+NodeP getHighestScoredNode(Graph& g) {
+	Graph::Nodes::T1Map::reverse_iterator i = g.nodes.map1.rbegin();
+	assert(i != g.nodes.map1.rend()); // there must at least be one entry
+	return i->second->second();
+}
+
+#define SHIPSNEEDEDTOCONQUER 2
+
+// not perfect yet
+// the first state where we got it
+// maybe the last state is better? but we will explore it anyway
+bool shipsNeededToConquerMin(int& numShips, int& time, int planet, int playerId, const GameState& startState, GameState& stateWithFleets) {
+	Is planets; planets.reserve(game.NumPlanets());
+	for(size_t i = 0; i < game.NumPlanets(); ++i) planets.push_back(i);
+	sort(planets.begin(), planets.end(), PlanetOrderByDistance(planet));
+
+	stateWithFleets = startState;
+	numShips = 0;
+	time = 0;
+	for(Iit i = planets.begin(); i != planets.end(); ++i) {
+		if(*i == planet) continue; // that is the planet we want to conquer
+		if(startState.planets[*i].owner != playerId) continue; // we can only send ships from our own planets
+		int dist = game.desc.Distance(*i, planet);
+		if(dist > time) time = dist;
+		stateWithFleets.ExecuteOrder(game.desc, playerId, *i, planet, startState.planets[*i].numShips);
+		
+		GameState state = stateWithFleets;
+		state.DoTimeSteps(dist, game.desc);
+		if(state.planets[planet].owner == playerId) { // got it
+			// let's see how much we can take away so that we still conquer it
+			while(state.planets[planet].owner == playerId) {
+				stateWithFleets.fleets.back().numShips--;
+				state = stateWithFleets;
+				state.DoTimeSteps(dist, game.desc);
+			}
+			stateWithFleets.fleets.back().numShips++;
+			numShips += stateWithFleets.fleets.back().numShips;
+			return true;
+		}
+		
+		numShips += stateWithFleets.fleets.back().numShips;
+	}	
+	// no chance
+	return false;
+}
+
+/*
+// not perfect and even wrong. also not used atm
+// max would be when enemy is sending each new round also
+void shipsNeededToConquerMax(int& numShips, int& time, int planet, int playerId, GameState startState) {
+	// add maximum possible fleets from enemy
+	for(size_t i = 0; i < game.NumPlanets(); ++i) {
+		if(i == planet) continue;
+		if(startState.planets[i].owner == 0) continue;
+		if(startState.planets[i].owner == playerId) continue;
+		startState.ExecuteOrder(game.desc, startState.planets[i].owner,
+								i, planet, startState.planets[i].numShips);
+	}
+	shipsNeededToConquerMin(numShips, time, planet, playerId, startState);
+}*/
+
+void pushbackNode(Turn turn, const NodeP& srcNode, const GameState& nextState, Graph& g) {
 	
+}
+
+void expandNextNodesForDT(Turn turn, const NodeP& srcNode, const GameState& nextState, Graph& g) {
+	turn.deltaTime = 0;
+	pushbackNode(turn, srcNode, nextState, g);
+	turn.deltaTime = 1;
+	pushbackNode(turn, srcNode, nextState.NextTimeStep(game.desc), g);
+}
+
+void expandNextNodesForPlanet(Turn turn, const NodeP& node, Graph& g) {
+	Is planets; planets.reserve(game.NumPlanets());
+	for(size_t i = 0; i < game.NumPlanets(); ++i) planets.push_back(i);
+	sort(planets.begin(), planets.end(), PlanetOrderByDistance(turn.destPlanet));
+	
+	const GameState& startState = node->state;
+	bool haveMin = false;
+	GameState stateWithFleets = startState;
+	int numShips = 0;
+	int time = 0;
+	for(Iit i = planets.begin(); i != planets.end(); ++i) {
+		if(*i == turn.destPlanet) continue; // that is the planet we want to conquer
+		if(startState.planets[*i].owner != turn.player) continue; // we can only send ships from our own planets
+		if(startState.planets[*i].numShips == 0) continue; // we must have ships to send
+		int dist = game.desc.Distance(*i, turn.destPlanet);
+		if(dist > time) time = dist;
+				
+		if(!haveMin) {
+			stateWithFleets.ExecuteOrder(game.desc, turn.player, *i, turn.destPlanet, startState.planets[*i].numShips);
+
+			GameState state = stateWithFleets;
+			state.DoTimeSteps(dist, game.desc);
+			if(state.planets[turn.destPlanet].owner == turn.destPlanet) { // got it
+				// let's see how much we can take away so that we still conquer it
+				while(state.planets[turn.destPlanet].owner == turn.player) {
+					turn.shipsAmount = numShips + stateWithFleets.fleets.back().numShips;
+					expandNextNodesForDT(turn, node, stateWithFleets, g);
+
+					stateWithFleets.fleets.back().numShips--;
+					state = stateWithFleets;
+					state.DoTimeSteps(dist, game.desc);
+				}
+				
+				stateWithFleets.fleets.back().numShips = startState.planets[*i].numShips;
+				haveMin = true;
+			}
+		}
+		else {
+			stateWithFleets.ExecuteOrder(game.desc, turn.player, *i, turn.destPlanet, 1);
+			while(true) {
+				turn.shipsAmount = numShips + stateWithFleets.fleets.back().numShips;
+				expandNextNodesForDT(turn, node, stateWithFleets, g);
+				
+				if(stateWithFleets.fleets.back().numShips >= startState.planets[*i].numShips) break;
+				stateWithFleets.fleets.back().numShips++;
+			}
+		}
+		
+		numShips += stateWithFleets.fleets.back().numShips;
+	}	
+}
+
+void expandNextNodesForPlayer(Turn turn, const NodeP& node, Graph& g) {
+	for(size_t i = 0; i < game.desc.planets.size(); ++i) {
+		turn.destPlanet = i;
+		expandNextNodesForPlanet(turn, node, g);
+	}
+}
+
+void expandNextNodes(Graph& g) {
+	NodeP node = getHighestScoredNode(g);
+	
+	Turn turn;
+	if(node->deltaTime.x < node->deltaTime.y)
+		turn.player = 1;
+	else
+		turn.player = 2;
+	expandNextNodesForPlayer(turn, node, g);
 }
 
 
