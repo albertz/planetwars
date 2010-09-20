@@ -41,6 +41,7 @@ struct Turn {
 	int destPlanet;
 	int shipsAmount;
 	int deltaTime;
+	Turn() : player(-1), destPlanet(-1), shipsAmount(0), deltaTime(0) {}
 };
 
 struct Node;
@@ -48,10 +49,10 @@ typedef std::tr1::shared_ptr<Node> NodeP;
 
 struct Transition {
 	Turn turn;
-	NodeP target, source;
+	NodeP source, target;
 
-	Transition(Turn _turn, const NodeP& _target, const NodeP& _source)
-	: turn(_turn), target(_target), source(_source) {}
+	Transition(Turn _turn, const NodeP& _source, const NodeP& _target)
+	: turn(_turn), source(_source), target(_target) {}
 	bool operator<(const Transition& t) const {
 		if(target.get() != t.target.get()) return target.get() < t.target.get();
 		return source.get() < t.source.get();
