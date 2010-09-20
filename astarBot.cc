@@ -26,15 +26,16 @@ static Game game;
 static long startRoundTime;
 
 static bool shouldStopRound() {
-	return currentTimeMillis() - startRoundTime >= 900;
+	return currentTimeMillis() - startRoundTime >= 60000;
 }
 
 struct PlanetOrderByDistance {
-	int planetDestId;
-	PlanetOrderByDistance(int _planetDestId) : planetDestId(_planetDestId) {}
+	VecD pos;
+	PlanetOrderByDistance(int planet) : pos(game.desc.planets[planet].pos()) {}
+	PlanetOrderByDistance(VecD _pos) : pos(_pos) {}
 	
 	bool operator()(int p1, int p2) const {
-		return game.desc.Distance(p1, planetDestId) < game.desc.Distance(p2, planetDestId);
+		return (game.desc.planets[p1].pos() - pos).GetLength2() < (game.desc.planets[p2].pos() - pos).GetLength2();
 	}
 };
 
@@ -65,12 +66,13 @@ struct Transition {
 };
 
 struct NodeScore : VecD { // must be >= 0
-	double eval() const { return (x + y) / (1.0 + abs(x - y)); }
+//	double eval() const { return (x + y) / (1.0 + abs(x - y)); }
+	double eval() const { return x - y; }
 	bool operator<(const NodeScore& c) const { return eval() < c.eval(); }
 };
 
 struct Node {
-	Vec deltaTime; // per player
+	Vec time; // per player
 	NodeScore scoreSoFar;
 	NodeScore score;
 	GameState state;
@@ -94,7 +96,7 @@ NodeScore estimateRest(const NodeP& node) {
 	NodeScore score;
 
 	GameState state = node->state;
-	int time = std::min(node->deltaTime.x, node->deltaTime.y);
+	int time = std::min(node->time.x, node->time.y);
 	while(state.fleets.size() > 0 && time < maxForwardTurns) {
 		score.x += state.Production(1, game.desc);
 		score.y += state.Production(2, game.desc);
@@ -184,8 +186,8 @@ void shipsNeededToConquerMax(int& numShips, int& time, int planet, int playerId,
 
 void pushbackNode(Turn turn, const NodeP& srcNode, const GameState& nextState, Graph& g) {
 	NodeP node(new Node);
-	node->deltaTime = srcNode->deltaTime;
-	((turn.player == 1) ? node->deltaTime.x : node->deltaTime.y) += turn.deltaTime;
+	node->time = srcNode->time;
+	((turn.player == 1) ? node->time.x : node->time.y) += turn.deltaTime;
 	node->state = nextState;
 	
 	Transition t(turn, srcNode, node);
@@ -266,9 +268,29 @@ void expandNextNodesForPlanet(Turn turn, const NodeP& node, Graph& g) {
 	}
 }
 
+static VecD averagePosOfPlayer(const GameState& state, int player) {
+	double numShips = 0;
+	VecD pos;
+	for(size_t i = 0; i < state.planets.size(); ++i) {
+		if(state.planets[i].owner != player) continue;
+		numShips += state.planets[i].numShips;
+		pos
+		+= VecD(game.desc.planets[i].x, game.desc.planets[i].y)
+		* state.planets[i].numShips;
+	}
+	if(numShips > 0.001)
+		pos *= 1.0 / numShips;
+	return pos;
+}
+
 void expandNextNodesForPlayer(Turn turn, const NodeP& node, Graph& g) {
-	for(size_t i = 0; i < game.desc.planets.size(); ++i) {
-		turn.destPlanet = i;
+	// this pre-sorting is only needed if we break the calculation in the middle and want the best first
+	Is planets; planets.reserve(game.NumPlanets());
+	for(size_t i = 0; i < game.NumPlanets(); ++i) planets.push_back(i);
+	sort(planets.begin(), planets.end(), PlanetOrderByDistance(averagePosOfPlayer(node->state, turn.player)));
+
+	for(size_t i = 0; i < game.NumPlanets(); ++i) {
+		turn.destPlanet = planets[i];
 		expandNextNodesForPlanet(turn, node, g);
 	}
 }
@@ -278,7 +300,7 @@ void expandNextNodes(Graph& g) {
 	NodeP node = getHighestScoredNode(g);
 	
 	Turn turn;
-	if(node->deltaTime.x <= node->deltaTime.y)
+	if(node->time.x <= node->time.y)
 		turn.player = 1;
 	else
 		turn.player = 2;
@@ -313,7 +335,7 @@ void DoTurn() {
 		path.push_front(t);
 		node = t.source;
 	}
-	cerr << "best path len: " << path.size() << endl;
+	cerr << "best path len: " << path.size() << ", nodes: " << g.nodes.size() << endl;
 	
 	GameState wantedState = game.state;
 	int dt = 0;
@@ -326,8 +348,6 @@ void DoTurn() {
 	for(size_t i = 0; i < wantedState.fleets.size(); ++i) {
 		const Fleet& fleet = wantedState.fleets[i];
 		if(fleet.owner != 1) continue; // dont care
-		cerr << "fleet: " << i << endl;
-
 		// turnsRemaining + dt = totalTripLength -> we just have created it
 		if(fleet.turnsRemaining + dt != fleet.totalTripLength) continue;
 
