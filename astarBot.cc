@@ -5,11 +5,13 @@
 #include <cmath>
 #include <string>
 #include <set>
+#include <list>
 #include <tr1/memory>
 #include <cassert>
 #include "SimpleBimap.h"
 #include "game.h"
 #include "vec.h"
+#include "utils.h"
 
 using namespace std;
 
@@ -47,12 +49,13 @@ typedef std::tr1::shared_ptr<Node> NodeP;
 struct Transition {
 	Turn turn;
 	NodeP target, source;
-};
 
-struct Node {
-	Vec deltaTime; // per player
-	GameState state;
-	std::set<Transition> transitions;
+	Transition(Turn _turn, const NodeP& _target, const NodeP& _source)
+	: turn(_turn), target(_target), source(_source) {}
+	bool operator<(const Transition& t) const {
+		if(target.get() != t.target.get()) return target.get() < t.target.get();
+		return source.get() < t.source.get();
+	}
 };
 
 struct NodeScore : VecD { // must be >= 0
@@ -60,10 +63,22 @@ struct NodeScore : VecD { // must be >= 0
 	bool operator<(const NodeScore& c) const { return eval() < c.eval(); }
 };
 
+struct Node {
+	Vec deltaTime; // per player
+	NodeScore scoreSoFar;
+	NodeScore score;
+	GameState state;
+	std::set<Transition> nextNodes;
+	std::set<Transition> prevNodes;	
+};
+
 struct Graph {
 	typedef Bimap<NodeScore, NodeP> Nodes;
 	Nodes nodes; // index/order both by nodes and by cost
 	Nodes::EntryP startNode;
+	
+	Nodes::EntryP insert(NodeP n) { return nodes.insert( n->score, n ); }
+	bool erase(NodeP n) { return nodes.erase2(n); }
 };
 
 int maxForwardTurns = 200;
@@ -93,7 +108,8 @@ NodeScore estimateRest(const NodeP& node) {
 void initGraph(Graph& g, const GameState& initialState) {
 	NodeP node(new Node);
 	node->state = initialState;
-	g.startNode = g.nodes.insert( estimateRest(node), node );
+	node->score = estimateRest(node);
+	g.startNode = g.insert(node);
 }
 
 NodeP getHighestScoredNode(Graph& g) {
@@ -158,7 +174,20 @@ void shipsNeededToConquerMax(int& numShips, int& time, int planet, int playerId,
 }*/
 
 void pushbackNode(Turn turn, const NodeP& srcNode, const GameState& nextState, Graph& g) {
+	NodeP node(new Node);
+	node->deltaTime = srcNode->deltaTime;
+	((turn.player == 1) ? node->deltaTime.x : node->deltaTime.y) += turn.deltaTime;
+	node->state = nextState;
 	
+	Transition t(turn, srcNode, node);
+	srcNode->nextNodes.insert(t);
+	node->prevNodes.insert(t);
+	
+	node->scoreSoFar = srcNode->scoreSoFar;
+	/*... turn score? */
+	node->score = node->scoreSoFar;
+	node->score += estimateRest(node);
+	g.insert(node);
 }
 
 void expandNextNodesForDT(Turn turn, const NodeP& srcNode, const GameState& nextState, Graph& g) {
@@ -229,33 +258,53 @@ void expandNextNodesForPlayer(Turn turn, const NodeP& node, Graph& g) {
 
 void expandNextNodes(Graph& g) {
 	NodeP node = getHighestScoredNode(g);
+	g.erase(node); // remove this node from search set. will still be in transition paths
 	
 	Turn turn;
 	if(node->deltaTime.x < node->deltaTime.y)
 		turn.player = 1;
 	else
 		turn.player = 2;
-	expandNextNodesForPlayer(turn, node, g);
+	expandNextNodesForPlayer(turn, node, g);	
 }
 
 
 
 void DoTurn() {
-/*	// myAvailableShips* is 0 here
-	// we keep so many ships so that the enemy does not take our planets away
-	for(Pit p = pw.myPlanets.begin(); p != pw.myPlanets.end(); ++p) {
-		RelevantPlanetState s = relevantPlanetState(*p);
-		if(s.shipsWeCanGiveAway > 0)
-			pw.myAvailableShips[p->planetId] = s.shipsWeCanGiveAway;
-		else
-			pw.myAvailableShips[p->planetId] = 0;
-		pw.myAvailableShipsNum += pw.myAvailableShips[p->planetId];
+	long startCalcTime = currentTimeMillis();
+	
+	Graph g;
+	initGraph(g, game.state);
+	
+	while(currentTimeMillis() - startCalcTime < 900) {
+		expandNextNodes(g);
 	}
-		
-	int p = -1;
-	while((p = getBestPlanetByRank()) >= 0)
-		if(!DoConquerPlanet(p))
-			return; */
+	
+	typedef std::list<Transition> Path;
+	Path path;
+	NodeP node = getHighestScoredNode(g);
+	while(node != (NodeP)g.startNode->second()) {
+		assert(node->prevNodes.size() > 0);
+		const Transition& t = *node->prevNodes.begin();		
+		path.push_front(t);
+		node = t.source;
+	}
+	
+	GameState wantedState = game.state;
+	for(Path::iterator i = path.begin(); i != path.end(); ++i) {
+		if(i->turn.deltaTime == 0) continue;
+		wantedState = i->target->state;
+		break;
+	}
+	
+	for(size_t i = 0; i < wantedState.fleets.size(); ++i) {
+		const Fleet& fleet = wantedState.fleets[i];
+		if(fleet.owner != 1) continue; // dont care
+		// turnsRemaining = totalTripLength -> we just have created it
+		if(fleet.turnsRemaining != fleet.totalTripLength) continue;
+
+		game.IssueOrder(fleet.sourcePlanet, fleet.destinationPlanet, fleet.numShips);
+	}
 }
 
 // This is just the main game loop that takes care of communicating with the
@@ -269,10 +318,10 @@ int main(int argc, char *argv[]) {
 		current_line += (char)(unsigned char)c;
 		if (c == '\n') {
 			if (current_line.length() >= 2 && current_line.substr(0, 2) == "go") {
-				//pw.update(map_data);
+				game.ParseGameState(map_data);
 				map_data = "";
 				DoTurn();
-				//_pw.FinishTurn();
+				game.FinishTurn();
 			} else {
 				map_data += current_line;
 			}
