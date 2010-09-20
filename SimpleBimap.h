@@ -50,6 +50,10 @@ public:
 		}
 		Property<Entry,T1,&Entry::set1,&Entry::get1> first() { return Property<Entry,T1,&Entry::set1,&Entry::get1>(*this); }
 		Property<Entry,T2,&Entry::set2,&Entry::get2> second() { return Property<Entry,T2,&Entry::set2,&Entry::get2>(*this); }
+		void erase() {
+			bimap.map1.erase(it1);
+			bimap.map2.erase(it2);
+		}
 	};
 	
 	T1Map map1;
@@ -71,6 +75,14 @@ public:
 		T2Iter i = map2.find(v);
 		if(i == map2.end()) return NULL;
 		return i->second;
+	}
+	
+	bool erase2(T2 v) {
+		T2Iter i = map2.find(v);
+		if(i == map2.end()) return false;
+		EntryP entry = i->second;
+		entry->erase();
+		return true;
 	}
 };
 
