@@ -75,7 +75,7 @@ struct Node {
 struct Graph {
 	typedef Bimap<NodeScore, NodeP> Nodes;
 	Nodes nodes; // index/order both by nodes and by cost
-	Nodes::EntryP startNode;
+	NodeP startNode;
 	
 	Nodes::EntryP insert(NodeP n) { return nodes.insert( n->score, n ); }
 	bool erase(NodeP n) { return nodes.erase2(n); }
@@ -109,7 +109,7 @@ void initGraph(Graph& g, const GameState& initialState) {
 	NodeP node(new Node);
 	node->state = initialState;
 	node->score = estimateRest(node);
-	g.startNode = g.insert(node);
+	g.startNode = (NodeP)g.insert(node)->second();
 	assert(g.nodes.map1.size() == 1);
 	assert(g.nodes.map2.size() == 1);
 }
@@ -123,6 +123,7 @@ NodeP getHighestScoredNode(Graph& g) {
 
 #define SHIPSNEEDEDTOCONQUER 2
 
+/*
 // not perfect yet
 // the first state where we got it
 // maybe the last state is better? but we will explore it anyway
@@ -161,7 +162,6 @@ bool shipsNeededToConquerMin(int& numShips, int& time, int planet, int playerId,
 	return false;
 }
 
-/*
 // not perfect and even wrong. also not used atm
 // max would be when enemy is sending each new round also
 void shipsNeededToConquerMax(int& numShips, int& time, int planet, int playerId, GameState startState) {
@@ -218,18 +218,19 @@ void expandNextNodesForPlanet(Turn turn, const NodeP& node, Graph& g) {
 		if(dist > time) time = dist;
 				
 		if(!haveMin) {
-			stateWithFleets.ExecuteOrder(game.desc, turn.player, *i, turn.destPlanet, startState.planets[*i].numShips);
+			assert(stateWithFleets.ExecuteOrder(game.desc, turn.player, *i, turn.destPlanet, startState.planets[*i].numShips));
 
 			GameState state = stateWithFleets;
 			state.DoTimeSteps(dist, game.desc);
-			if(state.planets[turn.destPlanet].owner == turn.destPlanet) { // got it
+			if(state.planets[turn.destPlanet].owner == turn.player) { // got it
 				// let's see how much we can take away so that we still conquer it
 				while(state.planets[turn.destPlanet].owner == turn.player) {
 					turn.shipsAmount = numShips + stateWithFleets.fleets.back().numShips;
 					expandNextNodesForDT(turn, node, stateWithFleets, g);
 
-					if(stateWithFleets.fleets.back().numShips == 0) break;
+					assert(stateWithFleets.fleets.back().numShips > 1);
 					stateWithFleets.fleets.back().numShips--;
+					stateWithFleets.planets[*i].numShips++;
 					state = stateWithFleets;
 					state.DoTimeSteps(dist, game.desc);
 				}
@@ -239,7 +240,7 @@ void expandNextNodesForPlanet(Turn turn, const NodeP& node, Graph& g) {
 			}
 		}
 		else {
-			stateWithFleets.ExecuteOrder(game.desc, turn.player, *i, turn.destPlanet, 1);
+			assert(stateWithFleets.ExecuteOrder(game.desc, turn.player, *i, turn.destPlanet, 1));
 			while(true) {
 				turn.shipsAmount = numShips + stateWithFleets.fleets.back().numShips;
 				expandNextNodesForDT(turn, node, stateWithFleets, g);
@@ -283,13 +284,14 @@ void DoTurn() {
 	
 	while(currentTimeMillis() - startCalcTime < 900) {
 		expandNextNodes(g);
+		cerr << game.numTurns << ":" << g.nodes.size() << endl;
 		if(g.nodes.size() == 0) return; // error
 	}
 	
 	typedef std::list<Transition> Path;
 	Path path;
 	NodeP node = getHighestScoredNode(g);
-	while(node != (NodeP)g.startNode->second()) {
+	while(node != g.startNode) {
 		assert(node->prevNodes.size() > 0);
 		const Transition& t = *node->prevNodes.begin();		
 		path.push_front(t);
@@ -306,8 +308,8 @@ void DoTurn() {
 	for(size_t i = 0; i < wantedState.fleets.size(); ++i) {
 		const Fleet& fleet = wantedState.fleets[i];
 		if(fleet.owner != 1) continue; // dont care
-		// turnsRemaining = totalTripLength -> we just have created it
-		if(fleet.turnsRemaining != fleet.totalTripLength) continue;
+		// turnsRemaining + 1 = totalTripLength -> we just have created it
+		if(fleet.turnsRemaining + 1 != fleet.totalTripLength) continue;
 
 		game.IssueOrder(fleet.sourcePlanet, fleet.destinationPlanet, fleet.numShips);
 	}
@@ -325,6 +327,7 @@ int main(int argc, char *argv[]) {
 		if (c == '\n') {
 			if (current_line.length() >= 2 && current_line.substr(0, 2) == "go") {
 				game.ParseGameState(map_data);
+				game.numTurns++;
 				map_data = "";
 				DoTurn();
 				game.FinishTurn();
