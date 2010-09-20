@@ -206,7 +206,7 @@ void expandNextNodesForPlanet(Turn turn, const NodeP& node, Graph& g) {
 	sort(planets.begin(), planets.end(), PlanetOrderByDistance(turn.destPlanet));
 	
 	const GameState& startState = node->state;
-	bool haveMin = false;
+	bool haveMin = startState.planets[turn.destPlanet].owner == turn.player;
 	GameState stateWithFleets = startState;
 	int numShips = 0;
 	int time = 0;
@@ -228,7 +228,7 @@ void expandNextNodesForPlanet(Turn turn, const NodeP& node, Graph& g) {
 					turn.shipsAmount = numShips + stateWithFleets.fleets.back().numShips;
 					expandNextNodesForDT(turn, node, stateWithFleets, g);
 
-					assert(stateWithFleets.fleets.back().numShips > 1);
+					if(stateWithFleets.fleets.back().numShips == 1) break;
 					stateWithFleets.fleets.back().numShips--;
 					stateWithFleets.planets[*i].numShips++;
 					state = stateWithFleets;
@@ -236,6 +236,7 @@ void expandNextNodesForPlanet(Turn turn, const NodeP& node, Graph& g) {
 				}
 				
 				stateWithFleets.fleets.back().numShips = startState.planets[*i].numShips;
+				stateWithFleets.planets[*i].numShips = 0;
 				haveMin = true;
 			}
 		}
@@ -245,13 +246,14 @@ void expandNextNodesForPlanet(Turn turn, const NodeP& node, Graph& g) {
 				turn.shipsAmount = numShips + stateWithFleets.fleets.back().numShips;
 				expandNextNodesForDT(turn, node, stateWithFleets, g);
 				
-				if(stateWithFleets.fleets.back().numShips >= startState.planets[*i].numShips) break;
+				if(stateWithFleets.planets[*i].numShips == 0) break;
 				stateWithFleets.fleets.back().numShips++;
+				stateWithFleets.planets[*i].numShips--;
 			}
 		}
 		
 		numShips += stateWithFleets.fleets.back().numShips;
-	}	
+	}
 }
 
 void expandNextNodesForPlayer(Turn turn, const NodeP& node, Graph& g) {
