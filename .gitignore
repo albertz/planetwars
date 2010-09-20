@@ -9,3 +9,5 @@ build
 replays
 *.mode2v3
 *.pbxuser
+*.log
+
