@@ -87,6 +87,11 @@ public:
 		entry->erase();
 		return true;
 	}
+	
+	void clear() {
+		map1.clear();
+		map2.clear();
+	}
 };
 
 #endif

@@ -67,7 +67,7 @@ struct Transition {
 
 struct NodeScore : VecD { // must be >= 0
 //	double eval() const { return (x + y) / (1.0 + abs(x - y)); }
-	double eval() const { return x - y; }
+	double eval() const { return x + y; }
 	bool operator<(const NodeScore& c) const { return eval() < c.eval(); }
 };
 
@@ -84,12 +84,18 @@ struct Node {
 struct Graph {
 	typedef Bimap<NodeScore, NodeP> Nodes;
 	Nodes nodes; // index/order both by nodes and by cost
+	typedef Bimap<double, NodeP> NodesPyP1Score;
+	NodesPyP1Score nodesByP1Score;
 	NodeP startNode;
 	
-	Nodes::EntryP insert(const NodeP& n) { return nodes.insert( n->score, n ); }
+	void insert(const NodeP& n) {
+		nodes.insert( n->score, n );
+		nodesByP1Score.insert( n->score.x, n );
+	}
 	void erase(const NodeP& n) { nodes.erase2(n); }
 	
 	void clear() {
+		nodesByP1Score.clear();
 		std::list<NodeP> nodes;
 		nodes.push_back(startNode);
 		while(!nodes.empty()) {
@@ -130,7 +136,8 @@ void initGraph(Graph& g, const GameState& initialState) {
 	NodeP node(new Node);
 	node->state = initialState;
 	node->score = estimateRest(node);
-	g.startNode = (NodeP)g.insert(node)->second();
+	g.startNode = node;
+	g.insert(node);
 	assert(g.nodes.map1.size() == 1);
 	assert(g.nodes.map2.size() == 1);
 }
@@ -252,7 +259,7 @@ void expandNextNodesForPlanet(Turn turn, const NodeP& node, Graph& g) {
 					turn.shipsAmount = numShips + stateWithFleets.fleets.back().numShips;
 					expandNextNodesForDT(turn, node, stateWithFleets, g);
 
-					if(lessFleetBranchingHack) break;
+					//if(lessFleetBranchingHack) break;
 					if(shouldStopRound()) return;
 					if(stateWithFleets.fleets.back().numShips == 1) break;
 					stateWithFleets.fleets.back().numShips--;
@@ -307,7 +314,7 @@ void expandNextNodesForPlayer(Turn turn, const NodeP& node, Graph& g) {
 	Is planets; planets.reserve(game.NumPlanets());
 	for(size_t i = 0; i < game.NumPlanets(); ++i) planets.push_back(i);
 	sort(planets.begin(), planets.end(), PlanetOrderByDistance(averagePosOfPlayer(node->state, turn.player)));
-	 */
+	*/
 	
 	for(size_t i = 0; i < game.NumPlanets(); ++i) {
 		turn.destPlanet = i; //planets[i];
@@ -345,9 +352,10 @@ void DoTurn() {
 		if(g.nodes.size() == 0) return; // error. can happen at very end
 	}
 	
+	assert(g.nodesByP1Score.size() > 0);
 	typedef std::list<Transition> Path;
 	Path path;
-	NodeP node = getHighestScoredNode(g);
+	NodeP node = g.nodesByP1Score.map1.rbegin()->second->second();
 	while(node != g.startNode) {
 		assert(node->prevNodes.size() > 0);
 		const Transition& t = *node->prevNodes.begin();		
