@@ -249,8 +249,9 @@ void expandNextNodesForPlanet(const Turn& turn, const NodeP& node, Graph& g) {
 				startState.planets[*i].numShips,
 				*i,
 				planetId,
-				1, // we simulate the timeframe right before this fleet is landing
-				dist);
+				dist,
+				1 // we simulate the timeframe right before this fleet is landing
+				);
 		fleets.push_back(f);
 		
 		PlanetState planetNextFrame = planet.NextTimeStep(planetId, game.desc.planets[planetId].growthRate, fleets, 1); 
