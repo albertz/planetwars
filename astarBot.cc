@@ -90,9 +90,12 @@ struct Graph {
 	
 	void insert(const NodeP& n) {
 		nodes.insert( n->score, n );
-		nodesByP1Score.insert( n->score.x, n );
+		nodesByP1Score.insert( n->score.x - n->score.y, n );
 	}
-	void erase(const NodeP& n) { nodes.erase2(n); }
+	void erase(const NodeP& n) {
+		nodes.erase2(n);
+		nodesByP1Score.erase2(n);
+	}
 	
 	void clear() {
 		nodesByP1Score.clear();
