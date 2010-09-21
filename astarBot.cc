@@ -222,6 +222,8 @@ void expandNextNodesForDT(Turn turn, const NodeP& srcNode, const GameState& next
 	pushbackNode(turn, srcNode, nextState.NextTimeStep(game.desc), g);
 }
 
+static const bool lessFleetBranchingHack = true;
+
 void expandNextNodesForPlanet(Turn turn, const NodeP& node, Graph& g) {
 	Is planets; planets.reserve(game.NumPlanets());
 	for(size_t i = 0; i < game.NumPlanets(); ++i) planets.push_back(i);
@@ -250,6 +252,7 @@ void expandNextNodesForPlanet(Turn turn, const NodeP& node, Graph& g) {
 					turn.shipsAmount = numShips + stateWithFleets.fleets.back().numShips;
 					expandNextNodesForDT(turn, node, stateWithFleets, g);
 
+					if(lessFleetBranchingHack) break;
 					if(shouldStopRound()) return;
 					if(stateWithFleets.fleets.back().numShips == 1) break;
 					stateWithFleets.fleets.back().numShips--;
@@ -269,6 +272,7 @@ void expandNextNodesForPlanet(Turn turn, const NodeP& node, Graph& g) {
 				turn.shipsAmount = numShips + stateWithFleets.fleets.back().numShips;
 				expandNextNodesForDT(turn, node, stateWithFleets, g);
 				
+				if(lessFleetBranchingHack) break;
 				if(shouldStopRound()) return;
 				if(stateWithFleets.planets[*i].numShips == 0) break;
 				stateWithFleets.fleets.back().numShips++;
