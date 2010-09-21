@@ -97,7 +97,7 @@ NodeScore estimateRest(const NodeP& node) {
 	}
 	
 	if(time < maxForwardTurns) {
-		double neutProd = state.Production(0, game.desc); // assume that each player got all the rest
+		double neutProd = 0.5 * state.Production(0, game.desc); // assume that each player got half the rest
 		NodeScore rest;
 		rest.x = neutProd + state.Production(1, game.desc);
 		rest.y = neutProd + state.Production(2, game.desc);
