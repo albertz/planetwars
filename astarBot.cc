@@ -26,7 +26,7 @@ static Game game;
 static long startRoundTime;
 
 static bool shouldStopRound() {
-	return currentTimeMillis() - startRoundTime >= 6000;
+	return currentTimeMillis() - startRoundTime >= 600;
 }
 
 struct PlanetOrderByDistance {
@@ -71,12 +71,13 @@ struct NodeScore : VecD { // must be >= 0
 };
 
 struct Node {
-	Vec time; // per player
+	int time;
 	NodeScore scoreSoFar;
 	NodeScore score;
 	GameState state;
 	std::set<Transition> prevNodes;
 	std::set<Transition> nextNodes;
+	Node() : time(0) {}
 	void clear() { prevNodes.clear(); nextNodes.clear(); }
 };
 
@@ -85,7 +86,7 @@ int maxForwardTurns = 200;
 // this must be an over-estimation, i.e. >= the real value for all possibilities
 NodeScore estimateRest(const NodeP& node) {
 	NodeScore score;
-	int time = std::min(node->time.x, node->time.y);
+	int time = node->time;
 		
 	GameState state = node->state;
 	while(state.fleets.size() > 0 && time < maxForwardTurns) {
@@ -96,7 +97,7 @@ NodeScore estimateRest(const NodeP& node) {
 	}
 	
 	if(time < maxForwardTurns) {
-		double neutProd = 0; //state.Production(0, game.desc); // assume that each player got all the rest
+		double neutProd = state.Production(0, game.desc); // assume that each player got all the rest
 		NodeScore rest;
 		rest.x = neutProd + state.Production(1, game.desc);
 		rest.y = neutProd + state.Production(2, game.desc);
@@ -164,8 +165,7 @@ NodeP getHighestScoredNode(Graph& g) {
 
 void pushbackNode(Turn turn, const NodeP& srcNode, const GameState& nextState, Graph& g) {
 	NodeP node(new Node);
-	node->time = srcNode->time;
-	((turn.player == 1) ? node->time.x : node->time.y) += turn.deltaTime;
+	node->time = srcNode->time + turn.deltaTime;
 	node->state = nextState;
 	
 	Transition t(turn, srcNode, node);
@@ -176,11 +176,6 @@ void pushbackNode(Turn turn, const NodeP& srcNode, const GameState& nextState, G
 	node->scoreSoFar.x += node->state.Production(1, game.desc);
 	node->scoreSoFar.y += node->state.Production(2, game.desc);
 	g.insert(node);
-}
-
-void expandNextNodesForDT(Turn turn, const NodeP& srcNode, const GameState& nextState, Graph& g) {
-	turn.deltaTime = 0;
-	pushbackNode(turn, srcNode, nextState, g);
 }
 
 void ExecuteOrder(GameState& state, const GameDesc& desc,
@@ -205,9 +200,9 @@ void ExecuteOrder(GameState& state, const GameDesc& desc,
 }
 
 static const bool lessFleetBranchingHack = true;
-static const bool delayShipSendingIfPossible = false;
+static const bool delayShipSendingIfPossible = true;
 
-static void __expandNextNodesForDT(const Turn& turn, const NodeP& srcNode, Fleets::iterator fleetBegin, const Fleets::iterator& fleetEnd, Graph& g) {
+static void __pushbackNode(const Turn& turn, const NodeP& srcNode, Fleets::iterator fleetBegin, const Fleets::iterator& fleetEnd, Graph& g) {
 	GameState nextState = srcNode->state;
 	int num = 0;
 	for(; fleetBegin != fleetEnd; ++fleetBegin) {
@@ -219,7 +214,7 @@ static void __expandNextNodesForDT(const Turn& turn, const NodeP& srcNode, Fleet
 	}
 	
 	if(num > 0)
-		expandNextNodesForDT(turn, srcNode, nextState, g);
+		pushbackNode(turn, srcNode, nextState, g);
 }
 
 void expandNextNodesForPlanet(const Turn& turn, const NodeP& node, Graph& g) {
@@ -280,7 +275,7 @@ void expandNextNodesForPlanet(const Turn& turn, const NodeP& node, Graph& g) {
 
 		if(haveMin) {
 			while(true) {
-				__expandNextNodesForDT(turn, node, fleets.begin() + oldFleetsSize, fleets.end(), g);
+				__pushbackNode(turn, node, fleets.begin() + oldFleetsSize, fleets.end(), g);
 				
 				if(lessFleetBranchingHack && dist > minNeededTime) break;
 				if(shouldStopRound()) break;
@@ -325,27 +320,25 @@ void expandNextNodesForPlayer(Turn turn, const NodeP& node, Graph& g) {
 		turn.destPlanet = i; //planets[i];
 		expandNextNodesForPlanet(turn, node, g);
 	}
-
-	// just do nothing this round
-	turn.deltaTime = 1;
-	turn.destPlanet = -1;
-	pushbackNode(turn, node, node->state.NextTimeStep(game.desc), g);
 }
 
 bool expandNextNodes(Graph& g) {
 	assert(g.nodes.map1.size() > 0);
 	NodeP node = getHighestScoredNode(g);
-	if(std::min(node->time.x,node->time.y) >= maxForwardTurns) return true;
+	if(node->time >= maxForwardTurns) return true;
 	
 	Turn turn;
-	if(node->time.x <= node->time.y) {
-		turn.player = 1;
-		expandNextNodesForPlayer(turn, node, g);	
-	}
-	if(node->time.x >= node->time.y) {
-		turn.player = 2;
-		expandNextNodesForPlayer(turn, node, g);	
-	}
+	turn.deltaTime = 0;
+	turn.player = 1;
+	expandNextNodesForPlayer(turn, node, g);
+	turn.player = 2;
+	expandNextNodesForPlayer(turn, node, g);
+
+	// just do nothing this round
+	turn.deltaTime = 1;
+	turn.player = -1;
+	turn.destPlanet = -1;
+	pushbackNode(turn, node, node->state.NextTimeStep(game.desc), g);
 	
 	if(shouldStopRound()) return false; // if we have stopped calc in the middle, just keep
 	g.erase(node); // remove this node from search set. will still be in transition paths
@@ -386,10 +379,10 @@ void DoTurn() {
 	int dt = 0;
 	for(Path::iterator i = path.begin(); i != path.end(); ++i) {
 		wantedState = i->target->state;
-		dt = i->target->time.x;
+		dt = i->target->time;
 		if(dt > 0) break;
 	}
-	cerr << "best (" << p1Score(node) << ") path len: " << path.back().target->time.x << "(" << path.size() << "), nodes: " << g.nodes.size() << ", dt: " << dt << endl;
+	cerr << "best (" << p1Score(node) << ") path len: " << path.back().target->time << "(" << path.size() << "), nodes: " << g.nodes.size() << ", dt: " << dt << endl;
 	
 	for(size_t i = 0; i < wantedState.fleets.size(); ++i) {
 		const Fleet& fleet = wantedState.fleets[i];
