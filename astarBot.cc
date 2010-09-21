@@ -109,7 +109,7 @@ NodeScore estimateRest(const NodeP& node) {
 }
 
 double p1Score(const NodeP& n) {
-	return n->state.Production(1, game.desc) - n->state.Production(2, game.desc);
+	return double(std::max(1, maxForwardTurns - n->time)) * (n->state.Production(1, game.desc) - n->state.Production(2, game.desc));
 }
 
 struct Graph {
