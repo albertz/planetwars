@@ -26,7 +26,7 @@ static Game game;
 static long startRoundTime;
 
 static bool shouldStopRound() {
-	return currentTimeMillis() - startRoundTime >= 900;
+	return currentTimeMillis() - startRoundTime >= 800;
 }
 
 struct PlanetOrderByDistance {
