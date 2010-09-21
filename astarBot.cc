@@ -232,6 +232,30 @@ void expandNextNodesForDT(Turn turn, const NodeP& srcNode, const GameState& next
 	pushbackNode(turn, srcNode, nextState.NextTimeStep(game.desc), g);
 }
 
+bool ExecuteOrder(GameState& state, const GameDesc& desc,
+				  int playerID,
+				  int sourcePlanet,
+				  int destinationPlanet,
+				  int numShips) {
+	PlanetState& source = state.planets[sourcePlanet];
+	if (source.owner != playerID ||
+		numShips > source.numShips ||
+		numShips <= 0) {
+		return false;
+	}
+	
+	source.numShips -= numShips;
+	int distance = desc.Distance(sourcePlanet, destinationPlanet);
+	Fleet f(source.owner,
+			numShips,
+			sourcePlanet,
+			destinationPlanet,
+			distance,
+			distance);
+	state.fleets.push_back(f);
+	return true;
+}
+
 static const bool lessFleetBranchingHack = true;
 
 void expandNextNodesForPlanet(Turn turn, const NodeP& node, Graph& g) {
@@ -245,14 +269,13 @@ void expandNextNodesForPlanet(Turn turn, const NodeP& node, Graph& g) {
 	int numShips = 0;
 	int time = 0;
 	for(Iit i = planets.begin(); i != planets.end(); ++i) {
-		if(*i == turn.destPlanet) continue; // that is the planet we want to conquer
 		if(startState.planets[*i].owner != turn.player) continue; // we can only send ships from our own planets
 		if(startState.planets[*i].numShips == 0) continue; // we must have ships to send
 		int dist = game.desc.Distance(*i, turn.destPlanet);
 		if(dist > time) time = dist;
 				
 		if(!haveMin) {
-			assert(stateWithFleets.ExecuteOrder(game.desc, turn.player, *i, turn.destPlanet, startState.planets[*i].numShips));
+			assert(ExecuteOrder(stateWithFleets, game.desc, turn.player, *i, turn.destPlanet, startState.planets[*i].numShips));
 
 			GameState state = stateWithFleets;
 			state.DoTimeSteps(dist, game.desc);
@@ -277,17 +300,20 @@ void expandNextNodesForPlanet(Turn turn, const NodeP& node, Graph& g) {
 			}
 		}
 		else {
-			assert(stateWithFleets.ExecuteOrder(game.desc, turn.player, *i, turn.destPlanet, 1));
+			assert(ExecuteOrder(stateWithFleets, game.desc, turn.player, *i, turn.destPlanet, stateWithFleets.planets[*i].numShips));
 			while(true) {
 				turn.shipsAmount = numShips + stateWithFleets.fleets.back().numShips;
 				expandNextNodesForDT(turn, node, stateWithFleets, g);
 				
 				if(lessFleetBranchingHack) break;
 				if(shouldStopRound()) return;
-				if(stateWithFleets.planets[*i].numShips == 0) break;
-				stateWithFleets.fleets.back().numShips++;
-				stateWithFleets.planets[*i].numShips--;
+				if(stateWithFleets.fleets.back().numShips == 1) break;
+				stateWithFleets.fleets.back().numShips--;
+				stateWithFleets.planets[*i].numShips++;
 			}
+
+			stateWithFleets.fleets.back().numShips = startState.planets[*i].numShips;
+			stateWithFleets.planets[*i].numShips = 0;
 		}
 		
 		numShips += stateWithFleets.fleets.back().numShips;
@@ -380,7 +406,9 @@ void DoTurn() {
 		if(fleet.owner != 1) continue; // dont care
 		// turnsRemaining + dt = totalTripLength -> we just have created it
 		if(fleet.turnsRemaining + dt != fleet.totalTripLength) continue;
-
+		if(fleet.sourcePlanet == fleet.destinationPlanet) continue; // invalid on server
+		if(fleet.numShips == 0) continue; // invalid on server
+		
 		game.IssueOrder(fleet.sourcePlanet, fleet.destinationPlanet, fleet.numShips);
 	}
 }
