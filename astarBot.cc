@@ -409,8 +409,13 @@ void DoTurn() {
 		if(fleet.sourcePlanet == fleet.destinationPlanet) continue; // invalid on server
 		if(fleet.numShips == 0) continue; // invalid on server
 		
-		game.IssueOrder(fleet.sourcePlanet, fleet.destinationPlanet, fleet.numShips);
+		if(game.state.ExecuteOrder(game.desc, 1, fleet.sourcePlanet, fleet.destinationPlanet, fleet.numShips))
+			game.IssueOrder(fleet.sourcePlanet, fleet.destinationPlanet, fleet.numShips);
+		else
+			cerr << "error for fleet " << fleet.sourcePlanet << "," << fleet.destinationPlanet << "," << fleet.numShips << endl;
 	}
+	
+	game.FinishTurn();
 }
 
 // This is just the main game loop that takes care of communicating with the
@@ -426,9 +431,8 @@ int main(int argc, char *argv[]) {
 			if (current_line.length() >= 2 && current_line.substr(0, 2) == "go") {
 				game.ParseGameState(map_data);
 				game.numTurns++;
-				map_data = "";
 				DoTurn();
-				game.FinishTurn();
+				map_data = "";
 			} else {
 				map_data += current_line;
 			}
