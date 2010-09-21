@@ -88,11 +88,18 @@ struct Graph {
 	
 	Nodes::EntryP insert(const NodeP& n) { return nodes.insert( n->score, n ); }
 	void erase(const NodeP& n) { nodes.erase2(n); }
-	~Graph() {
-		startNode.reset();
-		for(Nodes::T1Iter i = nodes.map1.begin(); i != nodes.map1.end(); ++i)
-			NodeP(i->second->second())->clear();
+	
+	void clear() {
+		std::list<NodeP> nodes;
+		nodes.push_back(startNode);
+		while(!nodes.empty()) {
+			NodeP node = nodes.front(); nodes.pop_front();
+			for(std::set<Transition>::iterator i = node->nextNodes.begin(); i != node->nextNodes.end(); ++i)
+				nodes.push_back(i->target);
+			node->clear();
+		}
 	}
+	~Graph() { clear(); }
 };
 
 int maxForwardTurns = 200;
