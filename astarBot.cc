@@ -26,7 +26,7 @@ static Game game;
 static long startRoundTime;
 
 static bool shouldStopRound() {
-	return currentTimeMillis() - startRoundTime >= 60000;
+	return currentTimeMillis() - startRoundTime >= 10000;
 }
 
 struct PlanetOrderByDistance {
@@ -76,8 +76,9 @@ struct Node {
 	NodeScore scoreSoFar;
 	NodeScore score;
 	GameState state;
+	std::set<Transition> prevNodes;
 	std::set<Transition> nextNodes;
-	std::set<Transition> prevNodes;	
+	void clear() { prevNodes.clear(); nextNodes.clear(); }
 };
 
 struct Graph {
@@ -85,8 +86,13 @@ struct Graph {
 	Nodes nodes; // index/order both by nodes and by cost
 	NodeP startNode;
 	
-	Nodes::EntryP insert(NodeP n) { return nodes.insert( n->score, n ); }
-	bool erase(NodeP n) { return nodes.erase2(n); }
+	Nodes::EntryP insert(const NodeP& n) { return nodes.insert( n->score, n ); }
+	void erase(const NodeP& n) { nodes.erase2(n); }
+	~Graph() {
+		startNode.reset();
+		for(Nodes::T1Iter i = nodes.map1.begin(); i != nodes.map1.end(); ++i)
+			NodeP(i->second->second())->clear();
+	}
 };
 
 int maxForwardTurns = 200;
@@ -105,7 +111,7 @@ NodeScore estimateRest(const NodeP& node) {
 	}
 	
 	if(time < maxForwardTurns) {
-		double neutProd = state.Production(0, game.desc); // assume that each player got all the rest
+		double neutProd = 0; //state.Production(0, game.desc); // assume that each player got all the rest
 		score.x += neutProd + state.Production(1, game.desc);
 		score.y += neutProd + state.Production(2, game.desc);
 		score *= maxForwardTurns - time;
@@ -195,7 +201,8 @@ void pushbackNode(Turn turn, const NodeP& srcNode, const GameState& nextState, G
 	node->prevNodes.insert(t);
 	
 	node->scoreSoFar = srcNode->scoreSoFar;
-	/*... turn score? */
+	node->scoreSoFar.x += node->state.Production(1, game.desc);
+	node->scoreSoFar.y += node->state.Production(2, game.desc);
 	node->score = node->scoreSoFar;
 	node->score += estimateRest(node);
 	g.insert(node);
@@ -285,19 +292,22 @@ static VecD averagePosOfPlayer(const GameState& state, int player) {
 
 void expandNextNodesForPlayer(Turn turn, const NodeP& node, Graph& g) {
 	// this pre-sorting is only needed if we break the calculation in the middle and want the best first
+	/*
 	Is planets; planets.reserve(game.NumPlanets());
 	for(size_t i = 0; i < game.NumPlanets(); ++i) planets.push_back(i);
 	sort(planets.begin(), planets.end(), PlanetOrderByDistance(averagePosOfPlayer(node->state, turn.player)));
-
+	 */
+	
 	for(size_t i = 0; i < game.NumPlanets(); ++i) {
-		turn.destPlanet = planets[i];
+		turn.destPlanet = i; //planets[i];
 		expandNextNodesForPlanet(turn, node, g);
 	}
 }
 
-void expandNextNodes(Graph& g) {
+bool expandNextNodes(Graph& g) {
 	assert(g.nodes.map1.size() > 0);
 	NodeP node = getHighestScoredNode(g);
+	if(std::min(node->time.x,node->time.y) >= maxForwardTurns) return true;
 	
 	Turn turn;
 	if(node->time.x <= node->time.y)
@@ -306,8 +316,9 @@ void expandNextNodes(Graph& g) {
 		turn.player = 2;
 	expandNextNodesForPlayer(turn, node, g);	
 
-	if(shouldStopRound()) return; // if we have stopped calc in the middle, just keep
+	if(shouldStopRound()) return false; // if we have stopped calc in the middle, just keep
 	g.erase(node); // remove this node from search set. will still be in transition paths
+	return false;
 }
 
 
@@ -319,11 +330,8 @@ void DoTurn() {
 	initGraph(g, game.state);
 	
 	while(!shouldStopRound()) {
-		expandNextNodes(g);
-		if(g.nodes.size() == 0) {
-			cerr << game.numTurns << " error: " << g.nodes.size() << endl;			
-			return; // error
-		}
+		if(expandNextNodes(g)) break; // we got the maximum len if it returns true
+		if(g.nodes.size() == 0) return; // error. can happen at very end
 	}
 	
 	typedef std::list<Transition> Path;
