@@ -84,7 +84,33 @@ RelevantPlanetState relevantPlanetState(const Planet& p) {
 	s.owner = p.owner;
 	s.shipsWeCanGiveAway = s.ships;
 	
-	for(Fit f = pw.fleets.begin(); f != pw.fleets.end(); ++f) {
+	
+		// HACK	
+		std::list<Fleet> possibleNewFleets;
+		for(size_t p1 = 0; p1 < _pw.state.planets.size(); ++p1) {
+			if(_pw.state.planets[p1].owner <= 1) continue; // ignore		
+			
+			int p2 = p.planetId;
+				if(_pw.state.planets[p2].owner != 1) continue; // ignore
+				
+				int dist = _pw.desc.Distance( p1, p2 );
+				Fleet f(_pw.state.planets[p1].owner, _pw.state.planets[p1].numShips,
+						p1,
+						p2,
+						dist,
+						dist - 1 /* maybe the enemy just sent it in this round */);
+				possibleNewFleets.push_back(f);
+		}
+		
+		std::vector<Fleet> fleets(pw.fleets.size() + possibleNewFleets.size(), Fleet(0,0));
+		std::merge(pw.fleets.begin(), pw.fleets.end(),
+				   possibleNewFleets.begin(), possibleNewFleets.end(),
+				   fleets.begin(),
+				   FleetOrderByTurnsRemaining());
+		pw.fleets.swap(fleets);
+	
+	
+	for(Fit f = fleets.begin(); f != fleets.end(); ++f) {
 		if(f->destinationPlanet != p.planetId) continue; // not relevant
 
 		int dt = f->turnsRemaining - s.time;
@@ -104,7 +130,6 @@ RelevantPlanetState relevantPlanetState(const Planet& p) {
 			}
 			else if(s.ships == -1)
 				s.ships = 0; // seems this is a special rule?
-			
 		}
 	}
 
@@ -123,7 +148,7 @@ float averageDistToNotOwnedPlanets(const Planet& p) {
 	return 0.0f;
 }
 
-#define SHIPSNEEDEDTOCONQUER 2
+#define SHIPSNEEDEDTOCONQUER 1
 
 float rankPlanetPosition(const Planet& p) {
 	return expf(-averageDistToNotOwnedPlanets(p) * 0.1f);	
