@@ -26,7 +26,7 @@ static Game game;
 static long startRoundTime;
 
 static bool shouldStopRound() {
-	return currentTimeMillis() - startRoundTime >= 600;
+	return currentTimeMillis() - startRoundTime >= 1900;
 }
 
 struct PlanetOrderByDistance {
@@ -109,6 +109,7 @@ NodeScore estimateRest(const NodeP& node) {
 }
 
 double p1Score(const NodeP& n) {
+//	return (n->state.NumShipsOnPlanets(1) - n->state.NumShipsOnPlanets(2)) + 2 * (n->state.Production(1, game.desc) - n->state.Production(2, game.desc));
 	return double(std::max(1, maxForwardTurns - n->time)) * (n->state.Production(1, game.desc) - n->state.Production(2, game.desc));
 }
 
@@ -310,13 +311,12 @@ static VecD averagePosOfPlayer(const GameState& state, int player) {
 }
 
 void expandNextNodesForPlayer(Turn turn, const NodeP& node, Graph& g) {
-	// this pre-sorting is only needed if we break the calculation in the middle and want the best first
 	/*
+	// this pre-sorting is only needed if we break the calculation in the middle and want the best first	
 	Is planets; planets.reserve(game.NumPlanets());
 	for(size_t i = 0; i < game.NumPlanets(); ++i) planets.push_back(i);
 	sort(planets.begin(), planets.end(), PlanetOrderByDistance(averagePosOfPlayer(node->state, turn.player)));
 	*/
-	
 	for(size_t i = 0; i < game.NumPlanets(); ++i) {
 		turn.destPlanet = i; //planets[i];
 		expandNextNodesForPlanet(turn, node, g);
