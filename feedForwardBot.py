@@ -59,6 +59,14 @@ def planetDist(p1, p2):
 	return int(ceil(sqrt(dx * dx + dy * dy)))
 
 
+def translateOwnerId(myOwnerId, ownerId):
+	if ownerId == myOwnerId:
+		return 1
+	elif 0 != ownerId < myOwnerId:
+		return ownerId + 1
+	else:
+		return ownerId
+
 def entitiesForPlanet(state, planet):
 	entities = []
 
@@ -69,25 +77,28 @@ def entitiesForPlanet(state, planet):
 		entities += [e]
 		planets[p._planet_id] = e
 		e.dist = planetDist(e, planet)
-		if e.owner == planet.owner:
-			e.owner = 1
-		elif 0 != e.owner < planet.owner:
-			e.owner += 1
+		e.owner = translateOwnerId(planet.owner, p.owner)
+		if e.owner > 0: e.shipNum += e.dist * e.growthRate
 
 	for f in state.fleets:
+		owner = translateOwnerId(planet.owner, f.owner)		
 		if f.dest == planet._planet_id:
 			e = Fleet(f)
+			e.owner = owner
 			entities += [e]
 		else:
 			# NOTE: We ignore the time when this fleet arrives.
 			# I think this should be good enough.
 			# If not, more complicated calculations are possible here.
 			destPlanet = planets[planet._planet_id]
-			if f.owner == destPlanet.owner:
+			if owner == destPlanet.owner:
 				destPlanet.shipNum += f.shipNum
 			else:
 				destPlanet.shipNum -= f.shipNum				
-				
+				if destPlanet.shipNum < 0:
+					destPlanet.shipNum *= -1
+					destPlanet.owner = owner
+
 	entities.sort(key = attrgetter("dist"))
 	return entities
 
@@ -174,8 +185,9 @@ def planetsAvgPos(planets):
 # create some general summed state
 def sumState(state):
 	summedState = State()
-	centralPlanet = random.choice(state.planets)
+	centralPlanet = random.choice(ifilter(lambda p: p.owner > 0, state.planets))
 	centralPlanets,distAverage = randomPlanetSet(centralPlanet, state.planets)
+	summedState.variance = distAverage
 
 	planetPartition = []
 	restPlanets = set(state.planets) - set(centralPlanets)	
@@ -214,9 +226,21 @@ def sumState(state):
 	return summedState
 
 
-def ordersForPlanet(entities):
-	pass
-
+def ordersForPlanet(myShipNum, distVariance, entities):
+	orders = []
+	for e in entities:
+		if e.owner == 1:
+			# TODO: maybe it makes sense to send ships here
+			pass
+		else: # neutral or enemy
+			if e is Planet:
+				shipNum = e.shipNum + 1
+				if e.owner > 0: shipNum += distVariance * e.growthRate
+				if shipNum <= myShipNum:
+					orders += [(e._base._planet_id, shipNum)]
+					myShipNum -= shipNum
+	return orders
+				
 def specializeOrders(summedState, orders):
 	pass
 
@@ -232,15 +256,18 @@ def ordersFromStateDiff(baseState, state):
 
 def play():
 	t = time()
+	MaxLoops = 10
 	
 	initialState = State.FromGlobal()
 	state = initialState
 	bestState,bestEval = state,0
 	
+	c = 0
 	while True:
 		summedState = sumState(state)
 		centralPlanet = summedState.centralPlanet
-		orders = ordersForPlanet(entitiesForPlanet(summedState, centralPlanet))
+		orders = ordersForPlanet(centralPlanet.shipNum, summedState.variance, entitiesForPlanet(summedState, centralPlanet))
+		orders = [(summedState.centralPlanet._planet_id,dest,shipNum) for (dest,shipNum) in orders]
 		realOrders = specializeOrders(summedState, orders)
 		state = nextState(state, realOrders)
 		eval = evalState(state)
@@ -248,7 +275,9 @@ def play():
 			bestState,bestEval = state,eval
 		
 		if time() - t > 1.0: break
-	
+		c += 1
+		if c > MaxLoops > 0: break
+		
 	return ordersFromStateDiff(initialState, bestState)
 	
 	
