@@ -49,7 +49,8 @@ class Planet(Entity):
 		Entity.__init__(self)
 		self.growthRate = None
 		handleBase(self, base)
-		
+		if base and hasattr(base, "_x") and hasattr(base, "_y"):
+			self._x,self._y = base._x,base._y
 
 
 def planetDist(p1, p2):
@@ -59,14 +60,34 @@ def planetDist(p1, p2):
 
 
 def entitiesForPlanet(state, planet):
-	entities = map(Planet, ifilter(lambda p: p != planet, state.planets))
-	for e in entities:
-		e.dist = planetDist(e._base, planet)
+	entities = []
+
+	planets = {}
+	for p in state.planets:
+		if p == planet: continue
+		e = Planet(p)
+		entities += [e]
+		planets[p._planet_id] = e
+		e.dist = planetDist(e, planet)
 		if e.owner == planet.owner:
 			e.owner = 1
 		elif 0 != e.owner < planet.owner:
-			e.owner += 1		
-	entities += map(Fleet, state.fleets)
+			e.owner += 1
+
+	for f in state.fleets:
+		if f.dest == planet._planet_id:
+			e = Fleet(f)
+			entities += [e]
+		else:
+			# NOTE: We ignore the time when this fleet arrives.
+			# I think this should be good enough.
+			# If not, more complicated calculations are possible here.
+			destPlanet = planets[planet._planet_id]
+			if f.owner == destPlanet.owner:
+				destPlanet.shipNum += f.shipNum
+			else:
+				destPlanet.shipNum -= f.shipNum				
+				
 	entities.sort(key = attrgetter("dist"))
 	return entities
 
