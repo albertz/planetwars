@@ -15,6 +15,9 @@ class Fleet:
     self._total_trip_length = total_trip_length
     self._turns_remaining = turns_remaining
 
+	self.dist = turns_remaining
+	
+
   def Owner(self):
     return self._owner
 
@@ -42,6 +45,9 @@ class Planet:
     self._growth_rate = growth_rate
     self._x = x
     self._y = y
+	
+	self.owner = owner
+	self.shipNum = num_ships
 
   def PlanetID(self):
     return self._planet_id
