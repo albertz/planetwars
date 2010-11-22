@@ -4,6 +4,11 @@
 from math import ceil, sqrt
 from sys import stdout
 
+def standardRepr(obj):
+	str = obj.__class__.__name__ + "("
+	attribs = map(lambda attrib: attrib + "=" + repr(getattr(obj, attrib)), objRepresentingArgs(obj))
+	str += ", ".join(attribs) + ")"
+	return str		
 
 class Fleet:
   def __init__(self, owner, num_ships, source_planet, destination_planet, \
@@ -15,9 +20,10 @@ class Fleet:
     self._total_trip_length = total_trip_length
     self._turns_remaining = turns_remaining
 
-	self.dist = turns_remaining
+    self.dist = turns_remaining
+    self.owner = owner
+    self.shipNum = num_ships
 	
-
   def Owner(self):
     return self._owner
 
@@ -36,6 +42,8 @@ class Fleet:
   def TurnsRemaining(self):
     return self._turns_remaining
 
+  __repr__ = standardRepr
+
 
 class Planet:
   def __init__(self, planet_id, owner, num_ships, growth_rate, x, y):
@@ -46,9 +54,10 @@ class Planet:
     self._x = x
     self._y = y
 	
-	self.owner = owner
-	self.shipNum = num_ships
-
+    self.owner = owner
+    self.shipNum = num_ships
+    self.growthRate = growth_rate
+	
   def PlanetID(self):
     return self._planet_id
 
@@ -77,6 +86,7 @@ class Planet:
   def RemoveShips(self, amount):
     self._num_ships -= amount
 
+  __repr__ = standardRepr
 
 class PlanetWars:
   def __init__(self, gameState):

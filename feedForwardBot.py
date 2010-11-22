@@ -4,7 +4,26 @@ from PlanetWars import PlanetWars
 from operator import *
 from math import *
 from itertools import *
+from functools import *
 from time import time
+import random
+
+
+Debug = True
+if Debug:
+	from pylab import ion, ioff, figure, draw, contourf, clf, show, hold, plot
+
+	def plotPoints(points):
+		figure(1)
+		ioff()  # interactive graphics off
+		clf()   # clear the plot
+		hold(True) # overplot on
+		for x,y in points:
+			plot(x,y,'o')
+		#if out.max()!=out.min():  # safety check against flat field
+		#	contourf(X, Y, out)   # plot the contour
+		ion()   # interactive graphics on
+		draw()  # update the plot		
 
 
 def objRepresentingArgs(obj):
@@ -56,24 +75,147 @@ class Planet(Entity):
 		handleBase(self, base)
 		
 
+
+def planetDist(p1, p2):
+	dx = p1._x - p2._x
+	dy = p1._y - p2._y
+	return int(ceil(sqrt(dx * dx + dy * dy)))
+
+
 def entitiesForPlanet(state, planet):
 	entities = map(Planet, ifilter(lambda p: p != planet, state.planets))
 	for e in entities:
-		dx = e._base._x - planet._x
-		dy = e._base._y - planet._y
-		e.dist = int(ceil(sqrt(dx * dx + dy * dy)))
+		e.dist = planetDist(e._base, planet)
 		if e.owner == planet.owner:
 			e.owner = 1
 		elif 0 != e.owner < planet.owner:
 			e.owner += 1		
-	entities += map(Fleet, pw.Fleets())
+	entities += map(Fleet, state.fleets)
 	entities.sort(key = attrgetter("dist"))
 	return entities
 
 
+class State:
+	def __init__(self):
+		self.planets = []
+		self.fleets = []
+
+	@staticmethod
+	def FromGlobal():
+		state = State()
+		state.planets = pw.Planets()
+		state.fleets = pw.Fleets()
+		return state
+	
+	
+def randomPlanetSet(centralPlanet, planets):
+	mindist = min(imap(partial(planetDist, centralPlanet), planets))
+	centralPlanets = [centralPlanet]
+	dists = []
+	for p in state.planets:
+		if p == centralPlanet: continue
+		if p.owner != centralPlanet.owner: continue
+		dist = planetDist(centralPlanet, p)
+		if dist >= abs(random.gauss(0, mindist)): continue
+		centralPlanets += [p]
+		dists += [dist]
+	if len(dists) > 0:
+		distAverage = float(sum(dists)) / len(dists)
+	else:
+		distAverage = 0.0
+	return centralPlanets, distAverage
+
+
+def vecValues(v):
+	if hasattr(v, "_x") and hasattr(v, "_y"):
+		return (v._x, v._y)
+	return v
+	
+def vecDist(v1, v2):
+	x1,y1 = v1
+	x2,v2 = v2
+	return hypot(x1-x2, y1-y2)
+
+def vecAdd(v1, v2): return tuple(map(add, izip(v1,v2)))
+def vecMul(v1, f): return tuple(map(mul, izip(v1,repeat(f))))
+
+def vecMerge(base, baseNum, vec):
+	v = vecAdd(vecMul(base, baseNum), vec)
+	baseNum += 1
+	v = vecMul(v, 1.0 / baseNum)
+	return v
+	
+
+def selectNearestPlanets(basePlanet, distPlanetCenter, planets):
+	base = (basePlanet._x, basePlanet._y)
+	distCenter = (distPlanetCenter._x, distPlanetCenter._y)
+	minDist = vecDist(base, distCenter) / 2.0
+	maxDist = vecDist(base, distCenter) * 4.0
+	planets = list(planets)
+	planets.sort(key = partial(planetDist, basePlanet))
+	nearestPlanets = [basePlanet]
+	for p in planets:
+		if p == basePlanet: continue
+		if p.owner != basePlanet: continue
+		x,y = p._x, p._y
+		if vecDist(base, (x,y)) > maxDist: continue
+		newBase = vecMerge(base, len(nearestPlanets), (x,y))
+		if vecDist(base, newBase) < minDist: continue
+		nearestPlanets += [p]
+		base = newBase
+	return nearestPlanets, base
+
+def planetsAvgPos(planets):
+	pos = (0,0)
+	num = 0
+	for p in planets:
+		pos = vecMerge(pos, num, (p._x, p._y))
+		num += 1
+	return pos
+
+	
 # create some general summed state
 def sumState(state):
-	pass
+	summedState = State()
+	centralPlanet = random.choice(state.planets)
+	centralPlanets,distAverage = randomPlanetSet(centralPlanet, state.planets)
+
+	planetPartition = []
+	restPlanets = set(state.planets) - set(centralPlanets)	
+	while len(restPlanets) > 0:
+		p = random.choice(restPlanets)
+		pGroup,_ = selectNearestPlanets(p, centralPlanet, restPlanets)
+		planetPartition += [pGroup]
+		restPlanets -= set(pGroup)
+	
+
+	oldPlanetIdToNew = {}
+	for pGroup in chain([centralPlanets], planetPartition):
+		p = Planet()
+		p._planet_id = len(summedState.planets)
+		p.owner = pGroup[0].owner
+		p.shipNum = sum(imap(attrgetter("shipNum"), pGroup))
+		p._x, p._y = planetsAvgPos(pGroup)
+		p.growthRate = sum(imap(attrgetter("growthRate"), pGroup))
+		p.planets = pGroup
+		p.planetIds = set(imap(attrgetter("_planet_id"), pGroup))
+		for oldid in p.planetIds: oldPlanetIdToNew[oldid] = p._planet_id
+		summedState.planets += [p] 	
+	summedState.centralPlanet = summedState.planets[0]
+	
+	fleets = []
+	for f in state.fleets:
+		newf = Fleet()
+		newf.owner = f.owner
+		newf.shipNum = f.shipNum
+		newf.dist = f.dist
+		newf.source = oldPlanetIdToNew[f._source_planet]
+		newf.dest = oldPlanetIdToNew[f._destination_planet]
+		fleets += [newf]	
+	summedState.fleets = fleets
+	
+	return summedState
+
 
 def ordersForPlanet(entities):
 	pass
@@ -94,6 +236,7 @@ def ordersFromStateDiff(baseState, state):
 def play():
 	t = time()
 	
+	initialState = State.FromGlobal()
 	state = initialState
 	bestState,bestEval = state,0
 	
