@@ -3,12 +3,7 @@
 
 from math import ceil, sqrt
 from sys import stdout
-
-def standardRepr(obj):
-	str = obj.__class__.__name__ + "("
-	attribs = map(lambda attrib: attrib + "=" + repr(getattr(obj, attrib)), objRepresentingArgs(obj))
-	str += ", ".join(attribs) + ")"
-	return str		
+from utils import *
 
 class Fleet:
   def __init__(self, owner, num_ships, source_planet, destination_planet, \
