@@ -292,10 +292,13 @@ def ordersFromStateDiff(baseState, state):
 	pass
 	
 
+initialState = None
+
 def play():
 	t = time()
 	MaxLoops = 10
 	
+	global initialState
 	initialState = State.FromGlobal()
 	state = initialState
 	bestState,bestEval = state,0
@@ -323,8 +326,13 @@ def play():
 
 def DoTurn(pw):
 	orders = play()
+	state = initialState
 	for source,dest,num_ships in orders:
+		if state.planets[source].owner != 1: continue
+		num_ships = min(state.planets[source].shipNum, num_ships)
+		if num_ships <= 0: continue
 		pw.IssueOrder(source, dest, num_ships)
+		state.planets[source].shipNum -= num_ships
 
 
 pw = None
