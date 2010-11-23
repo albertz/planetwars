@@ -246,10 +246,15 @@ def specializeOrders(summedState, orders):
 
 def nextState(state, orders):
 	pass
-
+	
 def evalState(state):
-	pass
-
+	def growthRateSum(planets): return sum(imap(attrgetter("growthRate"), planets))
+	def filterPlanetsWithOwner(planets, owner):
+		return ifilter(lambda p: p.owner == owner, planets)
+	prod1 = growthRateSum(filterPlanetsWithOwner(state.planets, 1))
+	prod2 = growthRateSum(filterPlanetsWithOwner(state.planets, 2))
+	return prod1 - prod2
+	
 def ordersFromStateDiff(baseState, state):
 	pass
 	
