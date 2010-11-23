@@ -342,15 +342,19 @@ def evalState(state):
 	prod2 = growthRateSum(filterPlanetsWithOwner(state.planets, 2))
 	return prod1 - prod2
 	
-def ordersFromStateDiff(baseState, state):
-	pass
-	
+def ordersFromState(state):
+	orders = []
+	for f in state.fleets:
+		if f.time > 0: continue
+		orders += [(f.source,f.dest,f.shipNum)]
+	return orders
+
 
 initialState = None
 
 def play():
 	t = time()
-	MaxLoops = 10
+	MaxLoops = 1
 	
 	global initialState
 	initialState = State.FromGlobal()
@@ -366,6 +370,8 @@ def play():
 		realOrders = specializeOrders(realState, summedState, orders)
 		state = nextState(state, realOrders)
 		eval = evalState(state)
+		
+		print "iter", c, ", eval:", eval
 		if eval > bestEval:
 			bestState,bestEval = state,eval
 		
@@ -373,7 +379,7 @@ def play():
 		c += 1
 		if c > MaxLoops > 0: break
 		
-	return ordersFromStateDiff(initialState, bestState)
+	return ordersFromState(bestState)
 	
 	
 
