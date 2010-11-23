@@ -18,6 +18,9 @@ class Fleet:
     self.dist = turns_remaining
     self.owner = owner
     self.shipNum = num_ships
+	self.source = source_planet
+	self.dest = destination_planet
+	self.time = total_trip_length - turns_remaining
 	
   def Owner(self):
     return self._owner

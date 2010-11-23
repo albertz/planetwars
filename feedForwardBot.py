@@ -115,7 +115,23 @@ class State:
 		state.fleets = pw.Fleets()
 		return state
 	
-	
+	def deepCopy(self):
+		state = State()
+		state.planets = list(self.planets)
+		for p,i in izip(state.planets,count(0)):
+			p = Planet(p)
+			p._base = None # remove the ref
+			p._planet_id = i
+			state.planets[i] = p
+		
+		state.fleets = list(self.fleets)
+		for f,i in izip(state.fleets,count(0)):
+			f = Fleet(f)
+			f._base = None
+			state.fleets[i] = f
+		
+		return state
+		
 def randomPlanetSet(centralPlanet, planets):
 	mindist = min(imap(partial(planetDist, centralPlanet), planets))
 	centralPlanets = [centralPlanet]
@@ -278,7 +294,45 @@ def specializeOrders(realState, summedState, orders):
 
 
 def nextState(state, orders):
-	pass
+	state = state.deepCopy()
+	for source,dest,num_ships in orders:
+		if num_ships == 0: continue
+		f = Fleet()
+		f.time = 0
+		f.owner = state.planets[source].owner
+		f.shipNum = num_ships
+		f.source = source
+		f.dest = dest
+		state.fleets += [f]
+	
+	# merge fleets
+	fleets = {} # index: (time,src,dst)
+	for f in state.fleets:
+		if f.time > 0 or f.source < f.dest:
+			fi,num_ships = (f.time, f.source, f.dest), f.shipNum
+		elif f.source > f.dest:
+			fi,num_ships = (f.time, f.dest, f.source), -f.shipNum
+		else:
+			assert False
+			continue # we can safely ignore that fleet. in fact, this should not happen at all
+		if not fi in fleets: fleets[fi] = 0
+		fleets[fi] += num_ships
+	
+	def makeFleet(fi, num_ships):
+		time, source, dest = fi
+		f = Fleet()
+		f.dist = planetDist(state.planets[source], state.planets[dest])
+		f.time = time
+		if time == 0 and num_ships < 0:
+			source,dest = dest,source
+			num_ships *= -1
+		f.owner = state.planets[source].owner
+		f.source = source
+		f.dest = dest
+		f.shipNum = num_ships
+	state.fleets = map(makeFleet, fleets.iteritems())
+
+	return state
 	
 def evalState(state):
 	def growthRateSum(planets): return sum(imap(attrgetter("growthRate"), planets))
