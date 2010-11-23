@@ -7,6 +7,7 @@ from itertools import *
 from functools import *
 from time import time
 from utils import *
+import sys
 import random
 
 
@@ -70,7 +71,7 @@ def translateOwnerId(myOwnerId, ownerId):
 def entitiesForPlanet(state, planet):
 	entities = []
 
-	planets = {}
+	planets = {} # planet id -> planet entitiy
 	for p in state.planets:
 		if p == planet: continue
 		e = Planet(p)
@@ -90,7 +91,7 @@ def entitiesForPlanet(state, planet):
 			# NOTE: We ignore the time when this fleet arrives.
 			# I think this should be good enough.
 			# If not, more complicated calculations are possible here.
-			destPlanet = planets[planet._planet_id]
+			destPlanet = planets[f.dest]
 			if owner == destPlanet.owner:
 				destPlanet.shipNum += f.shipNum
 			else:
@@ -136,7 +137,7 @@ def randomPlanetSet(centralPlanet, planets):
 	mindist = min(imap(partial(planetDist, centralPlanet), planets))
 	centralPlanets = [centralPlanet]
 	dists = []
-	for p in state.planets:
+	for p in planets:
 		if p == centralPlanet: continue
 		if p.owner != centralPlanet.owner: continue
 		dist = planetDist(centralPlanet, p)
@@ -157,11 +158,12 @@ def vecValues(v):
 	
 def vecDist(v1, v2):
 	x1,y1 = v1
-	x2,v2 = v2
+	x2,y2 = v2
 	return hypot(x1-x2, y1-y2)
+	
+def vecAdd(v1, v2): return tuple(imap(add, v1, v2))
+def vecMul(v1, f): return tuple(imap(mul, v1, repeat(f)))
 
-def vecAdd(v1, v2): return tuple(map(add, izip(v1,v2)))
-def vecMul(v1, f): return tuple(map(mul, izip(v1,repeat(f))))
 
 def vecMerge(base, baseNum, vec):
 	v = vecAdd(vecMul(base, baseNum), vec)
@@ -201,14 +203,14 @@ def planetsAvgPos(planets):
 # create some general summed state
 def sumState(state):
 	summedState = State()
-	centralPlanet = random.choice(ifilter(lambda p: p.owner > 0, state.planets))
+	centralPlanet = random.choice(filter(lambda p: p.owner > 0, state.planets))
 	centralPlanets,distAverage = randomPlanetSet(centralPlanet, state.planets)
 	summedState.variance = distAverage
 
 	planetPartition = []
 	restPlanets = set(state.planets) - set(centralPlanets)	
 	while len(restPlanets) > 0:
-		p = random.choice(restPlanets)
+		p = random.choice(tuple(restPlanets))
 		pGroup,_ = selectNearestPlanets(p, centralPlanet, restPlanets)
 		planetPartition += [pGroup]
 		restPlanets -= set(pGroup)
@@ -234,8 +236,8 @@ def sumState(state):
 		newf.owner = f.owner
 		newf.shipNum = f.shipNum
 		newf.dist = f.dist
-		newf.source = oldPlanetIdToNew[f._source_planet]
-		newf.dest = oldPlanetIdToNew[f._destination_planet]
+		newf.source = oldPlanetIdToNew[f.source]
+		newf.dest = oldPlanetIdToNew[f.dest]
 		fleets += [newf]	
 	summedState.fleets = fleets
 	
@@ -318,8 +320,8 @@ def nextState(state, orders):
 		if not fi in fleets: fleets[fi] = 0
 		fleets[fi] += num_ships
 	
-	def makeFleet(fi, num_ships):
-		time, source, dest = fi
+	def makeFleet(fi):
+		(time, source, dest), num_ships = fi
 		f = Fleet()
 		f.dist = planetDist(state.planets[source], state.planets[dest])
 		f.time = time
@@ -330,6 +332,7 @@ def nextState(state, orders):
 		f.source = source
 		f.dest = dest
 		f.shipNum = num_ships
+		return f
 	state.fleets = map(makeFleet, fleets.iteritems())
 
 	return state
@@ -367,11 +370,11 @@ def play():
 		centralPlanet = summedState.centralPlanet
 		orders = ordersForPlanet(centralPlanet.shipNum, summedState.variance, entitiesForPlanet(summedState, centralPlanet))
 		orders = [(summedState.centralPlanet._planet_id,dest,shipNum) for (dest,shipNum) in orders]
-		realOrders = specializeOrders(realState, summedState, orders)
+		realOrders = specializeOrders(state, summedState, orders)
 		state = nextState(state, realOrders)
 		eval = evalState(state)
 		
-		print "iter", c, ", eval:", eval
+		print >> sys.stderr, "iter", c, ", eval:", eval
 		if eval > bestEval:
 			bestState,bestEval = state,eval
 		

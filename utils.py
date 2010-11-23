@@ -25,3 +25,7 @@ def standardRepr(obj):
 	str += ", ".join(attribs) + ")"
 	return str		
 
+
+
+def call_exposed(func):
+	return lambda args: func(*args)
