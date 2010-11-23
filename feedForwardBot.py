@@ -240,9 +240,42 @@ def ordersForPlanet(myShipNum, distVariance, entities):
 					orders += [(e._base._planet_id, shipNum)]
 					myShipNum -= shipNum
 	return orders
-				
-def specializeOrders(summedState, orders):
-	pass
+
+def specializeOrders(realState, summedState, orders):
+	def planetClosestDest(planet, dstplanets):
+		dstplanets = set(dstplanets)
+		for p,d in planet._distances:
+			if p in dstplanets:
+				return p,d
+		return None
+
+	for srcplanet in realState.planets:
+		distances = []
+		for dstplanet in realState.planets:
+			if dstplanet == srcplanet: continue
+			distances += [(dstplanet,planetDist(srcplanet,dstplanet))]
+		distances.sort(key = itemgetter(1))
+		srcplanet._distances = distances
+		srcplanet.closestDest = planetClosestDest
+	
+	def planetsByDist(summedPlanet, summedDestPlanet):	
+		planets = [(p,) + p.closestDest(summedDestPlanet.planets) for p in summedPlanet.planets]
+		planets.sort(key = itemgetter(2))
+		return map(itemgetter(0,1), planets)
+	
+	orders = []
+	for srcplanet,dstplanet,shipNum in orders:
+		if shipNum <= 0: continue
+		srcplanet = summedState.planets[srcplanet]
+		dstplanet = summedState.planets[dstplanet]
+		for srcplanet,dstplanet in planetsByDist(srcplanet,dstplanet):
+			if srcplanet.shipNum < 0: continue # probably does not happen but maybe in the future. just to be sure, just catch it here
+			n = min(srcplanet.shipNum, shipNum)
+			orders += [(srcplanet._planet_id, dstplanet._planet_id, n)]
+			shipNum -= n
+			if shipNum <= 0: break
+	return orders
+
 
 def nextState(state, orders):
 	pass
@@ -273,7 +306,7 @@ def play():
 		centralPlanet = summedState.centralPlanet
 		orders = ordersForPlanet(centralPlanet.shipNum, summedState.variance, entitiesForPlanet(summedState, centralPlanet))
 		orders = [(summedState.centralPlanet._planet_id,dest,shipNum) for (dest,shipNum) in orders]
-		realOrders = specializeOrders(summedState, orders)
+		realOrders = specializeOrders(realState, summedState, orders)
 		state = nextState(state, realOrders)
 		eval = evalState(state)
 		if eval > bestEval:
