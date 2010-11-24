@@ -15,9 +15,7 @@ def initFromKWArgs(dst, args):
 	
 
 def handleBase(obj, base):
-	if base:
-		copyAttributes(obj, base)
-		obj._base = base
+	if base: copyAttributes(obj, base)
 
 def standardRepr(obj):
 	str = obj.__class__.__name__ + "("

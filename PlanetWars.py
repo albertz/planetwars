@@ -2,8 +2,11 @@
 #
 
 from math import ceil, sqrt
-from sys import stdout
+import sys
 from utils import *
+
+stdout = sys.stdout
+sys.stdout = sys.stderr
 
 class Fleet:
   def __init__(self, owner, num_ships, source_planet, destination_planet, \

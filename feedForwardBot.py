@@ -52,6 +52,8 @@ class Planet(Entity):
 		handleBase(self, base)
 		if base and hasattr(base, "_x") and hasattr(base, "_y"):
 			self._x,self._y = base._x,base._y
+		if base and hasattr(base, "_planet_id"):
+			self._planet_id = base._planet_id
 
 
 def planetDist(p1, p2):
@@ -77,6 +79,7 @@ def entitiesForPlanet(state, planet):
 		e = Planet(p)
 		entities += [e]
 		planets[p._planet_id] = e
+		e._base = p
 		e.dist = planetDist(e, planet)
 		e.owner = translateOwnerId(planet.owner, p.owner)
 		if e.owner > 0: e.shipNum += e.dist * e.growthRate
@@ -85,6 +88,7 @@ def entitiesForPlanet(state, planet):
 		owner = translateOwnerId(planet.owner, f.owner)		
 		if f.dest == planet._planet_id:
 			e = Fleet(f)
+			e._base = f
 			e.owner = owner
 			entities += [e]
 		else:
@@ -121,14 +125,12 @@ class State:
 		state.planets = list(self.planets)
 		for p,i in izip(state.planets,count(0)):
 			p = Planet(p)
-			p._base = None # remove the ref
 			p._planet_id = i
 			state.planets[i] = p
 		
 		state.fleets = list(self.fleets)
 		for f,i in izip(state.fleets,count(0)):
 			f = Fleet(f)
-			f._base = None
 			state.fleets[i] = f
 		
 		return state
@@ -251,7 +253,7 @@ def ordersForPlanet(myShipNum, distVariance, entities):
 			# TODO: maybe it makes sense to send ships here
 			pass
 		else: # neutral or enemy
-			if e is Planet:
+			if isinstance(e, Planet):
 				shipNum = e.shipNum + 1
 				if e.owner > 0: shipNum += distVariance * e.growthRate
 				if shipNum <= myShipNum:
@@ -274,14 +276,13 @@ def specializeOrders(realState, summedState, orders):
 			distances += [(dstplanet,planetDist(srcplanet,dstplanet))]
 		distances.sort(key = itemgetter(1))
 		srcplanet._distances = distances
-		srcplanet.closestDest = planetClosestDest
 	
 	def planetsByDist(summedPlanet, summedDestPlanet):	
-		planets = [(p,) + p.closestDest(summedDestPlanet.planets) for p in summedPlanet.planets]
+		planets = [(p,) + planetClosestDest(p, summedDestPlanet.planets) for p in summedPlanet.planets]
 		planets.sort(key = itemgetter(2))
 		return map(itemgetter(0,1), planets)
 	
-	orders = []
+	realOrders = []
 	for srcplanet,dstplanet,shipNum in orders:
 		if shipNum <= 0: continue
 		srcplanet = summedState.planets[srcplanet]
@@ -289,10 +290,11 @@ def specializeOrders(realState, summedState, orders):
 		for srcplanet,dstplanet in planetsByDist(srcplanet,dstplanet):
 			if srcplanet.shipNum < 0: continue # probably does not happen but maybe in the future. just to be sure, just catch it here
 			n = min(srcplanet.shipNum, shipNum)
-			orders += [(srcplanet._planet_id, dstplanet._planet_id, n)]
+			realOrders += [(srcplanet._planet_id, dstplanet._planet_id, n)]
 			shipNum -= n
 			if shipNum <= 0: break
-	return orders
+			
+	return realOrders
 
 
 def nextState(state, orders):
@@ -336,13 +338,64 @@ def nextState(state, orders):
 	state.fleets = map(makeFleet, fleets.iteritems())
 
 	return state
+
+# fleets should be pre-filtered to be in the right time-frame
+def fightBattle(p, fleets):
+	participants = [0,0,0]
+	participants[p.owner] = p.shipNum
+	
+	for f in fleets:
+		# no time check here. we already filtered them
+		if f.dest == p._planet_id:
+			participants[f.owner] += f.shipNum
+
+	winner = (0,0) # (player,shipNum)
+	second = (0,0)
+	for player,ships in izip(count(0), participants):
+		if ships > second[1]:
+			if ships > winner[1]:
+				second = winner
+				winner = (player, ships)
+			else:
+				second = (player, ships)
+	
+	if winner[1] > second[1]:
+		p.shipNum = winner[1] - second[1]
+		p.owner = winner[0]
+	else:
+		p.shipNum = 0
+	
+def growPlanets(planets, dt):
+	for p in planets:
+		if p.owner > 0:
+			p.shipNum += p.growthRate * dt
+
+def futurePlanets(state):
+	fleets = {} # time -> fleets
+	for f in state.fleets:
+		if not f.time in fleets: fleets[f.time] = []
+		fleets[f.time] += [f]	
+	fleets = list(fleets.iteritems())
+	fleets.sort()
+	
+	planets = list(imap(Planet, state.planets))
+	lastTime = 0
+	for time,fs in fleets:
+		if time > lastTime:
+			growPlanets(planets, time - lastTime)
+			lastTime = time
+		for p in planets:
+			fightBattle(p, fs)
+
+	return planets
 	
 def evalState(state):
 	def growthRateSum(planets): return sum(imap(attrgetter("growthRate"), planets))
-	def filterPlanetsWithOwner(planets, owner):
+	def filterPlanets(planets, owner):
 		return ifilter(lambda p: p.owner == owner, planets)
-	prod1 = growthRateSum(filterPlanetsWithOwner(state.planets, 1))
-	prod2 = growthRateSum(filterPlanetsWithOwner(state.planets, 2))
+	planets = futurePlanets(state)
+	prod1 = growthRateSum(filterPlanets(planets, owner=1))
+	prod2 = growthRateSum(filterPlanets(planets, owner=2))
 	return prod1 - prod2
 	
 def ordersFromState(state):
@@ -357,12 +410,13 @@ initialState = None
 
 def play():
 	t = time()
-	MaxLoops = 1
+	MaxLoops = 100
 	
 	global initialState
 	initialState = State.FromGlobal()
 	state = initialState
-	bestState,bestEval = state,0
+	bestState,bestEval = state,evalState(state)
+	print "initial, eval:", bestEval
 	
 	c = 0
 	while True:
@@ -374,8 +428,8 @@ def play():
 		state = nextState(state, realOrders)
 		eval = evalState(state)
 		
-		print >> sys.stderr, "iter", c, ", eval:", eval
 		if eval > bestEval:
+			print "iter", c, ", eval:", eval
 			bestState,bestEval = state,eval
 		
 		if time() - t > 1.0: break
