@@ -304,6 +304,7 @@ def DoTurn(pw):
 	for source,dest,num_ships in orders:
 		if state.planets[source].owner != 1: continue
 		if num_ships > state.planets[source].shipNum: continue
+		if num_ships <= 0: continue
 		pw.IssueOrder(source, dest, num_ships)
 		state.planets[source].shipNum -= num_ships
 
