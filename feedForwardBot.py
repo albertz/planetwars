@@ -246,11 +246,14 @@ def nextState(state, orders):
 
 	return state
 
+def evalPlayerState(planets, owner):
+	prod = growthRateSum(filterPlanets(planets, owner=owner))
+	#ships = shipsSum(filterPlanets(planets, owner=owner))
+	return prod
+
 def evalState(state):
 	planets = futurePlanets(state)
-	prod1 = growthRateSum(filterPlanets(planets, owner=1))
-	prod2 = growthRateSum(filterPlanets(planets, owner=2))
-	return prod1 - prod2
+	return evalPlayerState(planets,1) - evalPlayerState(planets,2)
 	
 def ordersFromState(state):
 	orders = []

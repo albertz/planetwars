@@ -124,7 +124,7 @@ class State:
 			state.fleets[i] = f
 		
 		return state
-		
+	
 	def __repr__(self):
 		return "State(" + repr(self.planets) + ")"
 
@@ -342,6 +342,8 @@ def futurePlanets(state):
 
 	return planets
 	
-def growthRateSum(planets): return sum(imap(attrgetter("growthRate"), planets))
+
 def filterPlanets(planets, owner):
 	return ifilter(lambda p: p.owner == owner, planets)
+def growthRateSum(planets): return sum(imap(attrgetter("growthRate"), planets))
+def shipsSum(planets): return sum(imap(attrgetter("shipNum"), planets))
