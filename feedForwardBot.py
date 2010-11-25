@@ -135,6 +135,9 @@ class State:
 		
 		return state
 		
+	__repr__ = standardRepr
+
+			
 def randomPlanetSet(centralPlanet, planets):
 	mindist = min(imap(partial(planetDist, centralPlanet), planets))
 	centralPlanets = [centralPlanet]
@@ -217,10 +220,13 @@ def sumState(state):
 		planetPartition += [pGroup]
 		restPlanets -= set(pGroup)
 	
-
+	class SummedPlanet(Planet):
+		def __repr__(self):
+			return "{" + ",".join(imap(str, self.planetIds)) + "}"
+			
 	oldPlanetIdToNew = {}
 	for pGroup in chain([centralPlanets], planetPartition):
-		p = Planet()
+		p = SummedPlanet()
 		p._planet_id = len(summedState.planets)
 		p.owner = pGroup[0].owner
 		p.shipNum = sum(imap(attrgetter("shipNum"), pGroup))
@@ -410,7 +416,7 @@ initialState = None
 
 def play():
 	t = time()
-	MaxLoops = 100
+	MaxLoops = 1
 	
 	global initialState
 	initialState = State.FromGlobal()
@@ -421,6 +427,7 @@ def play():
 	c = 0
 	while True:
 		summedState = sumState(state)
+		print summedState
 		centralPlanet = summedState.centralPlanet
 		orders = ordersForPlanet(centralPlanet.shipNum, summedState.variance, entitiesForPlanet(summedState, centralPlanet))
 		orders = [(summedState.centralPlanet._planet_id,dest,shipNum) for (dest,shipNum) in orders]
