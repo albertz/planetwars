@@ -256,18 +256,24 @@ def sumState(state):
 	return summedState
 
 
-def ordersForPlanet(myShipNum, distVariance, entities):
+def ordersForPlanet(planet, distVariance, entities):
+	myShipNum = planet.shipNum
 	orders = []
 	for e in entities:
+		if e.owner >= 2 and not isinstance(e, Planet):
+			myShipNum -= e.shipNum
+	for e in entities:
 		if e.owner == 1:
-			# TODO: maybe it makes sense to send ships here
-			pass
+			if myShipNum < 0 < e.shipNum and isinstance(e, Planet):
+				shipNum = min(-myShipNum, e.shipNum)
+				orders += [(e._planet_id, -shipNum)]
+			# TODO: maybe there are more cases where it makes sense to send ships here
 		else: # neutral or enemy
 			if isinstance(e, Planet):
 				shipNum = e.shipNum + 1
 				if e.owner > 0: shipNum += distVariance * e.growthRate
 				if shipNum <= myShipNum:
-					orders += [(e._base._planet_id, shipNum)]
+					orders += [(e._planet_id, shipNum)]
 					myShipNum -= shipNum
 	return orders
 
@@ -277,7 +283,7 @@ def specializeOrders(realState, summedState, orders):
 		for p,d in planet._distances:
 			if p in dstplanets:
 				return p,d
-		return None
+		assert False
 
 	for srcplanet in realState.planets:
 		distances = []
@@ -433,7 +439,7 @@ def play():
 	while True:
 		summedState = sumState(state)
 		centralPlanet = summedState.centralPlanet
-		orders = ordersForPlanet(centralPlanet.shipNum, summedState.variance, entitiesForPlanet(summedState, centralPlanet))
+		orders = ordersForPlanet(centralPlanet, summedState.variance, entitiesForPlanet(summedState, centralPlanet))
 		orders = [(summedState.centralPlanet._planet_id,dest,shipNum) for (dest,shipNum) in orders]
 		realOrders = specializeOrders(state, summedState, orders)
 		state = nextState(state, realOrders)
