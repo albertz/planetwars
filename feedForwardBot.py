@@ -135,18 +135,20 @@ class State:
 		
 		return state
 		
-	__repr__ = standardRepr
+	def __repr__(self):
+		return "State(" + repr(self.planets) + ")"
 
 			
 def randomPlanetSet(centralPlanet, planets):
-	mindist = min(imap(partial(planetDist, centralPlanet), planets))
+	mindist = min(imap(partial(planetDist, centralPlanet), ifilter(lambda p: p != centralPlanet, planets)))
 	centralPlanets = [centralPlanet]
 	dists = []
 	for p in planets:
 		if p == centralPlanet: continue
 		if p.owner != centralPlanet.owner: continue
 		dist = planetDist(centralPlanet, p)
-		if dist >= abs(random.gauss(0, mindist)): continue
+		rnddist = abs(random.gauss(0.0, mindist * 1.0))
+		if dist >= rnddist: continue
 		centralPlanets += [p]
 		dists += [dist]
 	if len(dists) > 0:
@@ -180,18 +182,19 @@ def vecMerge(base, baseNum, vec):
 def selectNearestPlanets(basePlanet, distPlanetCenter, planets):
 	base = (basePlanet._x, basePlanet._y)
 	distCenter = (distPlanetCenter._x, distPlanetCenter._y)
-	minDist = vecDist(base, distCenter) / 2.0
+	minDist = vecDist(base, distCenter) / 4.0
 	maxDist = vecDist(base, distCenter) * 4.0
 	planets = list(planets)
 	planets.sort(key = partial(planetDist, basePlanet))
 	nearestPlanets = [basePlanet]
 	for p in planets:
 		if p == basePlanet: continue
-		if p.owner != basePlanet: continue
+		if p.owner != basePlanet.owner: continue
 		x,y = p._x, p._y
-		if vecDist(base, (x,y)) > maxDist: continue
+		if vecDist((basePlanet._x, basePlanet._y), (x,y)) < minDist: continue
+		#if vecDist(base, (x,y)) > maxDist: continue
 		newBase = vecMerge(base, len(nearestPlanets), (x,y))
-		if vecDist(base, newBase) < minDist: continue
+		if vecDist((basePlanet._x, basePlanet._y), newBase) < minDist: continue
 		nearestPlanets += [p]
 		base = newBase
 	return nearestPlanets, base
@@ -208,7 +211,8 @@ def planetsAvgPos(planets):
 # create some general summed state
 def sumState(state):
 	summedState = State()
-	centralPlanet = random.choice(filter(lambda p: p.owner > 0, state.planets))
+	#centralPlanet = random.choice(filter(lambda p: p.owner > 0, state.planets))
+	centralPlanet = random.choice(filter(lambda p: p.owner == 1, state.planets))
 	centralPlanets,distAverage = randomPlanetSet(centralPlanet, state.planets)
 	summedState.variance = distAverage
 
@@ -416,10 +420,11 @@ initialState = None
 
 def play():
 	t = time()
-	MaxLoops = 1
+	MaxLoops = 100
 	
 	global initialState
 	initialState = State.FromGlobal()
+	if isempty(ifilter(lambda p: p.owner == 1, initialState.planets)): return []
 	state = initialState
 	bestState,bestEval = state,evalState(state)
 	print "initial, eval:", bestEval
@@ -427,7 +432,6 @@ def play():
 	c = 0
 	while True:
 		summedState = sumState(state)
-		print summedState
 		centralPlanet = summedState.centralPlanet
 		orders = ordersForPlanet(centralPlanet.shipNum, summedState.variance, entitiesForPlanet(summedState, centralPlanet))
 		orders = [(summedState.centralPlanet._planet_id,dest,shipNum) for (dest,shipNum) in orders]

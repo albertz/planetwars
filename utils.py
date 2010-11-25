@@ -27,3 +27,11 @@ def standardRepr(obj):
 
 def call_exposed(func):
 	return lambda args: func(*args)
+
+
+def isempty(iterable):
+	try:
+		iterable.__iter__().next()
+		return False
+	except StopIteration:
+		return True
