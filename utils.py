@@ -17,6 +17,11 @@ def initFromKWArgs(dst, args):
 def handleBase(obj, base):
 	if base: copyAttributes(obj, base)
 
+def handleKWArgs(obj, kwargs):
+	for arg,value in kwargs.iteritems():
+		setattr(obj, arg, value)
+
+
 def standardRepr(obj):
 	str = obj.__class__.__name__ + "("
 	attribs = map(lambda attrib: attrib + "=" + repr(getattr(obj, attrib)), objRepresentingArgs(obj))

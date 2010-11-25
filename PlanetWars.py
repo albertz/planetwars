@@ -1,93 +1,135 @@
 #!/usr/bin/env python
 #
 
-from math import ceil, sqrt
 import sys
 from utils import *
+from operator import *
+from math import *
+from itertools import *
+from functools import *
 
 stdout = sys.stdout
 sys.stdout = sys.stderr
 
-class Fleet:
-  def __init__(self, owner, num_ships, source_planet, destination_planet, \
-   total_trip_length, turns_remaining):
-    self._owner = owner
-    self._num_ships = num_ships
-    self._source_planet = source_planet
-    self._destination_planet = destination_planet
-    self._total_trip_length = total_trip_length
-    self._turns_remaining = turns_remaining
 
-    self.dist = turns_remaining
-    self.owner = owner
-    self.shipNum = num_ships
-    self.source = source_planet
-    self.dest = destination_planet
-    self.time = total_trip_length - turns_remaining
+
+
+class Base:
+	__repr__ = standardRepr
 	
-  def Owner(self):
-    return self._owner
 
-  def NumShips(self):
-    return self._num_ships
+# either a fleet or a planet
+class Entity(Base):
+	def __init__(self):
+		self.owner = None
+		self.shipNum = None
+		self.dist = None
 
-  def SourcePlanet(self):
-    return self._source_planet
+class Fleet(Entity):
+	def __init__(self, base = None, **kwargs):
+		Entity.__init__(self)
+		self.source = None
+		handleBase(self, base)
+		handleKWArgs(self, kwargs)
+		
+class Planet(Entity):
+	def __init__(self, base = None, **kwargs):
+		Entity.__init__(self)
+		self.growthRate = None
+		handleBase(self, base)
+		if base and hasattr(base, "_x") and hasattr(base, "_y"):
+			self._x,self._y = base._x,base._y
+		if base and hasattr(base, "_planet_id"):
+			self._planet_id = base._planet_id
+		handleKWArgs(self, kwargs)
 
-  def DestinationPlanet(self):
-    return self._destination_planet
 
-  def TotalTripLength(self):
-    return self._total_trip_length
-
-  def TurnsRemaining(self):
-    return self._turns_remaining
-
-  __repr__ = standardRepr
+def planetDist(p1, p2):
+	dx = p1._x - p2._x
+	dy = p1._y - p2._y
+	return int(ceil(sqrt(dx * dx + dy * dy)))
 
 
-class Planet:
-  def __init__(self, planet_id, owner, num_ships, growth_rate, x, y):
-    self._planet_id = planet_id
-    self._owner = owner
-    self._num_ships = num_ships
-    self._growth_rate = growth_rate
-    self._x = x
-    self._y = y
+def translateOwnerId(myOwnerId, ownerId):
+	if ownerId == myOwnerId:
+		return 1
+	elif 0 != ownerId < myOwnerId:
+		return ownerId + 1
+	else:
+		return ownerId
+
+def entitiesForPlanet(state, planet):
+	entities = []
+
+	planets = {} # planet id -> planet entitiy
+	for p in state.planets:
+		if p == planet: continue
+		e = Planet(p)
+		entities += [e]
+		planets[p._planet_id] = e
+		e._base = p
+		e.dist = planetDist(e, planet)
+		e.owner = translateOwnerId(planet.owner, p.owner)
+		if e.owner > 0: e.shipNum += e.dist * e.growthRate
+
+	for f in state.fleets:
+		owner = translateOwnerId(planet.owner, f.owner)		
+		if f.dest == planet._planet_id:
+			e = Fleet(f)
+			e._base = f
+			e.owner = owner
+			entities += [e]
+		else:
+			# NOTE: We ignore the time when this fleet arrives.
+			# I think this should be good enough.
+			# If not, more complicated calculations are possible here.
+			destPlanet = planets[f.dest]
+			if owner == destPlanet.owner:
+				destPlanet.shipNum += f.shipNum
+			else:
+				destPlanet.shipNum -= f.shipNum				
+				if destPlanet.shipNum < 0:
+					destPlanet.shipNum *= -1
+					destPlanet.owner = owner
+
+	entities.sort(key = attrgetter("dist"))
+	return entities
+
+
+
+
+class State:
+	def __init__(self):
+		self.planets = []
+		self.fleets = []
+
+	@staticmethod
+	def FromGlobal():
+		state = State()
+		state.planets = pw.Planets()
+		state.fleets = pw.Fleets()
+		return state
 	
-    self.owner = owner
-    self.shipNum = num_ships
-    self.growthRate = growth_rate
-	
-  def PlanetID(self):
-    return self._planet_id
+	def deepCopy(self):
+		state = State()
+		state.planets = list(self.planets)
+		for p,i in izip(state.planets,count(0)):
+			p = Planet(p)
+			p._planet_id = i
+			state.planets[i] = p
+		
+		state.fleets = list(self.fleets)
+		for f,i in izip(state.fleets,count(0)):
+			f = Fleet(f)
+			state.fleets[i] = f
+		
+		return state
+		
+	def __repr__(self):
+		return "State(" + repr(self.planets) + ")"
 
-  def Owner(self, new_owner=None):
-    if new_owner == None:
-      return self._owner
-    self._owner = new_owner
 
-  def NumShips(self, new_num_ships=None):
-    if new_num_ships == None:
-      return self._num_ships
-    self._num_ships = new_num_ships
 
-  def GrowthRate(self):
-    return self._growth_rate
-
-  def X(self):
-    return self._x
-
-  def Y(self):
-    return self._y
-
-  def AddShips(self, amount):
-    self._num_ships += amount
-
-  def RemoveShips(self, amount):
-    self._num_ships -= amount
-
-  __repr__ = standardRepr
 
 class PlanetWars:
   def __init__(self, gameState):
@@ -207,23 +249,23 @@ class PlanetWars:
       if tokens[0] == "P":
         if len(tokens) != 6:
           return 0
-        p = Planet(planet_id, # The ID of this planet
-                   int(tokens[3]), # Owner
-                   int(tokens[4]), # Num ships
-                   int(tokens[5]), # Growth rate
-                   float(tokens[1]), # X
-                   float(tokens[2])) # Y
+        p = Planet(_planet_id= planet_id, # The ID of this planet
+                   owner= int(tokens[3]), # Owner
+                   shipNum= int(tokens[4]), # Num ships
+                   growthRate= int(tokens[5]), # Growth rate
+                   _x = float(tokens[1]), # X
+                   _y = float(tokens[2])) # Y
         planet_id += 1
         self._planets.append(p)
       elif tokens[0] == "F":
         if len(tokens) != 7:
           return 0
-        f = Fleet(int(tokens[1]), # Owner
-                  int(tokens[2]), # Num ships
-                  int(tokens[3]), # Source
-                  int(tokens[4]), # Destination
-                  int(tokens[5]), # Total trip length
-                  int(tokens[6])) # Turns remaining
+        f = Fleet(owner= int(tokens[1]), # Owner
+                  shipNum= int(tokens[2]), # Num ships
+                  source= int(tokens[3]), # Source
+                  dest= int(tokens[4]), # Destination
+                  dist= int(tokens[5]), # Total trip length
+                  time= int(tokens[5]) - int(tokens[6])) # time
         self._fleets.append(f)
       else:
         return 0
@@ -232,3 +274,74 @@ class PlanetWars:
   def FinishTurn(self):
     stdout.write("go\n")
     stdout.flush()
+
+
+pw = None
+
+def readNextGameState():
+	global pw
+	map_data = ''
+	while(True):
+		current_line = raw_input()
+		if len(current_line) >= 2 and current_line.startswith("go"):
+			pw = PlanetWars(map_data)
+			return pw
+		else:
+			map_data += current_line + '\n'
+
+
+
+# fleets should be pre-filtered to be in the right time-frame
+def fightBattle(p, fleets):
+	participants = [0,0,0]
+	participants[p.owner] = p.shipNum
+	
+	for f in fleets:
+		# no time check here. we already filtered them
+		if f.dest == p._planet_id:
+			participants[f.owner] += f.shipNum
+
+	winner = (0,0) # (player,shipNum)
+	second = (0,0)
+	for player,ships in izip(count(0), participants):
+		if ships > second[1]:
+			if ships > winner[1]:
+				second = winner
+				winner = (player, ships)
+			else:
+				second = (player, ships)
+	
+	if winner[1] > second[1]:
+		p.shipNum = winner[1] - second[1]
+		p.owner = winner[0]
+	else:
+		p.shipNum = 0
+	
+
+def growPlanets(planets, dt):
+	for p in planets:
+		if p.owner > 0:
+			p.shipNum += p.growthRate * dt
+
+def futurePlanets(state):
+	fleets = {} # time -> fleets
+	for f in state.fleets:
+		if not f.time in fleets: fleets[f.time] = []
+		fleets[f.time] += [f]	
+	fleets = list(fleets.iteritems())
+	fleets.sort()
+	
+	planets = list(imap(Planet, state.planets))
+	lastTime = 0
+	for time,fs in fleets:
+		if time > lastTime:
+			growPlanets(planets, time - lastTime)
+			lastTime = time
+		for p in planets:
+			fightBattle(p, fs)
+
+	return planets
+	
+def growthRateSum(planets): return sum(imap(attrgetter("growthRate"), planets))
+def filterPlanets(planets, owner):
+	return ifilter(lambda p: p.owner == owner, planets)
