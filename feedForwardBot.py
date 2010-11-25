@@ -74,7 +74,7 @@ def selectNearestPlanets(basePlanet, distPlanetCenter, planets):
 	base = (basePlanet._x, basePlanet._y)
 	distCenter = (distPlanetCenter._x, distPlanetCenter._y)
 	minDist = vecDist(base, distCenter) / 2.0
-	maxDist = vecDist(base, distCenter) * 4.0
+	maxDist = vecDist(base, distCenter) * 1.0
 	planets = list(planets)
 	planets.sort(key = partial(planetDist, basePlanet))
 	nearestPlanets = [basePlanet]
@@ -83,7 +83,7 @@ def selectNearestPlanets(basePlanet, distPlanetCenter, planets):
 		if p.owner != basePlanet.owner: continue
 		x,y = p._x, p._y
 		if vecDist((basePlanet._x, basePlanet._y), (x,y)) < minDist: continue
-		#if vecDist(base, (x,y)) > maxDist: continue
+		if vecDist(base, (x,y)) > maxDist: continue
 		newBase = vecMerge(base, len(nearestPlanets), (x,y))
 		if vecDist((basePlanet._x, basePlanet._y), newBase) < minDist: continue
 		nearestPlanets += [p]
@@ -204,6 +204,41 @@ def specializeOrders(realState, summedState, orders):
 	return realOrders
 
 
+def areFleetsPossible(planets, fleets):
+	ships = {} # planet -> shipNum
+	for f in fleets:
+		if not f.source in ships: ships[f.source] = 0
+		ships[f.source] += f.shipNum
+	for p,s in ships.iteritems():
+		if s > planets[p].shipNum: return False
+	return True
+
+def _selectBestPossibleFleets(planets, fleets, player):
+	while not areFleetsPossible(planets, fleets):
+		state = State()
+		state.planets = planets
+		state.fleets = fleets
+		
+		worstFleet,worstFleetValue = None,None
+		for f in list(fleets):
+			fleets.remove(f)
+			futPlanets = futurePlanets(state)
+			fleets.add(f)
+			value = evalPlayerState(futPlanets, player)
+			if worstFleet is None or worstFleetValue > value:
+				worstFleet,worstFleetValue = f,value
+		
+		fleets.remove(worstFleet)
+		
+def selectBestPossibleFleets(state):
+	otherFleets = filter(lambda f: f.time > 0, state.fleets)
+	fleets1 = set(ifilter(lambda f: f.time == 0 and f.owner == 1, state.fleets))
+	fleets2 = set(ifilter(lambda f: f.time == 0 and f.owner == 2, state.fleets))
+	_selectBestPossibleFleets(state.planets, fleets1, 1)
+	_selectBestPossibleFleets(state.planets, fleets2, 2)
+	state.fleets = otherFleets + list(fleets1) + list(fleets2)
+
+
 def nextState(state, orders):
 	state = state.deepCopy()
 	for source,dest,num_ships in orders:
@@ -224,8 +259,7 @@ def nextState(state, orders):
 		elif f.source > f.dest:
 			fi,num_ships = (f.time, f.dest, f.source), -f.shipNum
 		else:
-			assert False
-			continue # we can safely ignore that fleet. in fact, this should not happen at all
+			assert False # we can safely ignore that fleet. in fact, this should not happen at all
 		if not fi in fleets: fleets[fi] = 0
 		fleets[fi] += num_ships
 	
@@ -244,7 +278,9 @@ def nextState(state, orders):
 		return f
 	state.fleets = map(makeFleet, fleets.iteritems())
 
+	#selectBestPossibleFleets(state)
 	return state
+
 
 def evalPlayerState(planets, owner):
 	prod = growthRateSum(filterPlanets(planets, owner=owner))
@@ -268,7 +304,7 @@ initialState = None
 
 def play():
 	t = time()
-	MaxLoops = 100
+	MaxLoops = 50
 	
 	global initialState
 	initialState = State.FromGlobal()
@@ -292,7 +328,7 @@ def play():
 			state = newState
 			bestState,bestEval = state,eval
 			
-		if time() - t > 1.0: break
+		#if time() - t > 1.0: break
 		c += 1
 		if c > MaxLoops > 0: break
 		
