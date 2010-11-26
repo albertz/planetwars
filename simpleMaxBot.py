@@ -163,9 +163,15 @@ def play():
 				p.shipNum += shipNumSum
 				if p.shipNum < 0:
 					if p._planet_id in orders:
-						while len(orders[p._planet_id]) > 0:
-							_,_,shipNum = orders[p._planet_id].pop()
-							p.shipNum += shipNum
+						for i in xrange(len(orders[p._planet_id])):
+							orderShipNum = orders[p._planet_id][i][2]
+							if orderShipNum >= -p.shipNum:
+								orderShipNum += p.shipNum
+								p.shipNum = 0
+							else:
+								p.shipNum += orderShipNum
+								orderShipNum = 0
+							orders[p._planet_id][i] = orders[p._planet_id][i][0:2] + (orderShipNum,)
 							if p.shipNum >= 0: break
 				availableShips[p._planet_id] = min(availableShips[p._planet_id], p.shipNum)
 				if p.shipNum < 0:
