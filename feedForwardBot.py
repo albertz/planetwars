@@ -239,6 +239,7 @@ def selectBestPossibleFleets(state):
 	state.fleets = otherFleets + list(fleets1) + list(fleets2)
 
 
+
 def nextState(state, orders):
 	state = state.deepCopy()
 	for source,dest,num_ships in orders:
@@ -280,7 +281,6 @@ def nextState(state, orders):
 
 	#selectBestPossibleFleets(state)
 	return state
-
 
 def evalPlayerState(planets, owner):
 	prod = growthRateSum(filterPlanets(planets, owner=owner))
@@ -342,6 +342,7 @@ def DoTurn(pw):
 	state = initialState
 	for source,dest,num_ships in orders:
 		if state.planets[source].owner != 1: continue
+		if source == dest: continue
 		if num_ships > state.planets[source].shipNum: continue
 		if num_ships <= 0: continue
 		pw.IssueOrder(source, dest, num_ships)

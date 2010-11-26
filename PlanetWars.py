@@ -264,7 +264,7 @@ class PlanetWars:
                   shipNum= int(tokens[2]), # Num ships
                   source= int(tokens[3]), # Source
                   dest= int(tokens[4]), # Destination
-                  dist= int(tokens[5]), # Total trip length
+                  dist= int(tokens[6]), # remaining time
                   time= int(tokens[5]) - int(tokens[6])) # time
         self._fleets.append(f)
       else:
@@ -324,10 +324,10 @@ def growPlanets(planets, dt):
 			p.shipNum += p.growthRate * dt
 
 def futurePlanets(state):
-	fleets = {} # time -> fleets
+	fleets = {} # remaining dist -> fleets
 	for f in state.fleets:
-		if not f.time in fleets: fleets[f.time] = []
-		fleets[f.time] += [f]	
+		if not f.dist in fleets: fleets[f.dist] = []
+		fleets[f.dist] += [f]	
 	fleets = list(fleets.iteritems())
 	fleets.sort()
 	
@@ -341,9 +341,33 @@ def futurePlanets(state):
 			fightBattle(p, fs)
 
 	return planets
+
+def groupFleets(_fleets):
+	fleets = {} # remaining time -> fleets
+	for f in _fleets:
+		if not f.dist in fleets: fleets[f.dist] = []
+		fleets[f.dist] += [f]	
+	fleets = list(fleets.iteritems())
+	fleets.sort()
+	return fleets
+
+def futurePlanet(planet, fleets, endTime):
+	fleets = groupFleets(fleets)
+	planet = Planet(planet)
+	lastTime = 0
+	for time,fs in fleets:
+		if time > endTime > 0: break
+		if time > lastTime:
+			growPlanets((planet,), time - lastTime)
+			lastTime = time
+		fightBattle(planet, fs)
+
+	return planet
 	
 
 def filterPlanets(planets, owner):
 	return ifilter(lambda p: p.owner == owner, planets)
 def growthRateSum(planets): return sum(imap(attrgetter("growthRate"), planets))
 def shipsSum(planets): return sum(imap(attrgetter("shipNum"), planets))
+
+
