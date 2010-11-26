@@ -112,7 +112,7 @@ def play():
 	ownedplanets = filter(lambda p: p.owner > 0, planets)
 	
 	for p in notmyplanets:
-		p.closest = min(izip(ownedplanets, imap(partial(planetDist, p), ownedplanets)), key = itemgetter(1))
+		p.closest = min(izip(myplanets, imap(partial(planetDist, p), myplanets)), key = itemgetter(1))
 
 	myclosestplanets = filter(lambda p: p.closest[0].owner == 1, notmyplanets)
 	myclosestplanets.sort(key = lambda p: p.closest[1])
