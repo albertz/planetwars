@@ -107,6 +107,7 @@ def play():
 	state = State.FromGlobal()
 	planets = map(Planet, state.planets)
 	myplanets = filter(lambda p: p.owner == 1, planets)
+	if len(myplanets) == 0: return []
 	notmyplanets = filter(lambda p: p.owner != 1, planets)
 	enemyplanets = filter(lambda p: p.owner >= 2, planets)
 	ownedplanets = filter(lambda p: p.owner > 0, planets)
@@ -140,7 +141,7 @@ def play():
 	baserequirements.sort(key = itemgetter(0))
 	
 	bestOrders, bestOrdersEval = None, None
-	for i in xrange(50):
+	for c in xrange(50):
 		random.shuffle(baseorders)
 		orders,resultingPlanets = validOrders(baseorders)
 		orders = multidict(izip(imap(itemgetter(0), orders), orders)) # planetid -> order
@@ -197,7 +198,7 @@ def play():
 		value = evalOrders(orders)
 		if bestOrders is None or value > bestOrdersEval:
 			bestOrders,bestOrdersEval = list(orders), value
-			print "iter", i, ":", bestOrdersEval
+			print "iter", c, ":", bestOrdersEval
 			
 	return bestOrders
 	
