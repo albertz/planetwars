@@ -5,7 +5,7 @@ from operator import *
 from math import *
 from itertools import *
 from functools import *
-from time import time
+import time as Time
 from utils import *
 import sys
 import random
@@ -103,6 +103,8 @@ def ordersForReqs(requirements, planets):
 	
 	
 def play():
+	startTime = Time.time()
+
 	global state
 	state = State.FromGlobal()
 	planets = map(Planet, state.planets)
@@ -201,6 +203,8 @@ def play():
 		if bestOrders is None or value > bestOrdersEval:
 			bestOrders,bestOrdersEval = list(orders), value
 			print "iter", c, ":", bestOrdersEval
+
+		if Time.time() - startTime > 0.8: break
 			
 	return bestOrders
 	
