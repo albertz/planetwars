@@ -42,13 +42,13 @@ def evalOrders(orders):
 		s.fleets += [f]
 	return evalState(s)
 
-def validOrders(orders):
+def validOrders(orders, allowedNegVariance = 0):
 	validOrders = []
 	planets = map(Planet, state.planets)
 	for source,dest,num_ships in orders:
 		if planets[source].owner != 1: continue
 		if source == dest: continue
-		if num_ships > planets[source].shipNum: continue
+		if num_ships > planets[source].shipNum + allowedNegVariance: continue
 		if num_ships <= 0: continue
 		planets[source].shipNum -= num_ships
 		validOrders += [(source,dest,num_ships)]
@@ -111,6 +111,7 @@ def play():
 	notmyplanets = filter(lambda p: p.owner != 1, planets)
 	enemyplanets = filter(lambda p: p.owner >= 2, planets)
 	ownedplanets = filter(lambda p: p.owner > 0, planets)
+	myShipsNumSum = shipsSum(filterPlanets(planets, owner=1))
 	
 	for p in notmyplanets:
 		p.closest = min(izip(myplanets, imap(partial(planetDist, p), myplanets)), key = itemgetter(1))
@@ -189,10 +190,11 @@ def play():
 		orders = mergeOrders(orders)
 		orders = filterObsoleteOrders(orders)
 		
-		random.shuffle(orders)
+		#random.shuffle(orders)
 		orders += ordersForReqs(baserequirements, resultingPlanets)
 		orders = mergeOrders(orders)
 		orders = filterObsoleteOrders(orders)		
+		random.shuffle(orders)
 		orders,_ = validOrders(orders)
 
 		value = evalOrders(orders)
