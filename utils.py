@@ -40,3 +40,12 @@ def isempty(iterable):
 		return False
 	except StopIteration:
 		return True
+
+
+def multidict(iterable, innertype = list, addfunc = list.append):
+	d = {}
+	for key,value in iterable:
+		if not key in d:
+			d[key] = innertype()
+		addfunc(d[key], value)
+	return d

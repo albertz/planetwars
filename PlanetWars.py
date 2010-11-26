@@ -318,10 +318,12 @@ def fightBattle(p, fleets):
 		p.shipNum = 0
 	
 
+def growPlanet(p, dt):
+	if p.owner > 0:
+		p.shipNum += p.growthRate * dt
+
 def growPlanets(planets, dt):
-	for p in planets:
-		if p.owner > 0:
-			p.shipNum += p.growthRate * dt
+	for p in planets: growPlanet(p, dt)
 
 def futurePlanets(state):
 	fleets = {} # remaining dist -> fleets
@@ -358,7 +360,7 @@ def futurePlanet(planet, fleets, endTime):
 	for time,fs in fleets:
 		if time > endTime > 0: break
 		if time > lastTime:
-			growPlanets((planet,), time - lastTime)
+			growPlanet(planet, time - lastTime)
 			lastTime = time
 		fightBattle(planet, fs)
 
