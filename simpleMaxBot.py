@@ -100,6 +100,7 @@ def ordersForReqs(requirements, planets):
 					orders += [(p._planet_id, pid, orderShipNum)]
 					p.shipNum -= orderShipNum
 					shipNum -= orderShipNum
+					if shipNum <= 0: break
 			if shipNum <= 0: break
 	return orders
 	
