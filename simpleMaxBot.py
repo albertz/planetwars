@@ -87,8 +87,10 @@ def filterObsoleteOrders(orders):
 
 def ordersForReqs(requirements, planets):
 	orders = []
+	sortedplanets = list(planets)
 	for pid,time,shipNum in requirements:
-		for p in planets:
+		sortedplanets.sort(key = lambda p: planetDist(p, planets[pid]))
+		for p in sortedplanets:
 			if p.owner != 1: continue
 			if p._planet_id == pid: continue
 			if time == 0 or planetDist(p, planets[pid]) <= time:
@@ -145,61 +147,68 @@ def play():
 	
 	bestOrders, bestOrdersEval = None, None
 	for c in xrange(50):
-		random.shuffle(baseorders)
-		orders,resultingPlanets = validOrders(baseorders)
+		orders = list(baseorders)
+		random.shuffle(orders)
+		orders,resultingPlanets = validOrders(orders)
+
 		orders = multidict(izip(imap(itemgetter(0), orders), orders)) # planetid -> order
 		
 		availableShips = map(attrgetter("shipNum"), resultingPlanets)
 		requirements = []
 		for p in resultingPlanets:
-			if p.owner != 1: continue
+			p = Planet(p)
 			fleets = filter(lambda f: f.dest == p._planet_id, state.fleets)
 			fleets = groupFleets(fleets)
 			lastTime = 0
+			reqsForPlanet = []
+			planetIsRelevant = (p.owner == 1)
 			for time,fs in fleets:
 				if time > lastTime:
 					growPlanet(p, time - lastTime)
 					lastTime = time
-				shipNumSum = 0
-				for f in fs:
-					if f.owner == 1: shipNumSum += f.shipNum
-					else: shipNumSum -= f.shipNum
-				p.shipNum += shipNumSum
-				if p.shipNum < 0:
-					if p._planet_id in orders:
-						for i in xrange(len(orders[p._planet_id])):
-							orderShipNum = orders[p._planet_id][i][2]
-							if orderShipNum >= -p.shipNum:
-								orderShipNum += p.shipNum
-								p.shipNum = 0
-							else:
-								p.shipNum += orderShipNum
-								orderShipNum = 0
-							orders[p._planet_id][i] = orders[p._planet_id][i][0:2] + (orderShipNum,)
-							if p.shipNum >= 0: break
-				availableShips[p._planet_id] = min(availableShips[p._planet_id], p.shipNum)
-				if p.shipNum < 0:
-					requirements += [(p._planet_id, time, -p.shipNum)]
-					p.shipNum = 0
-		for i,shipNum in izip(count(0), availableShips):
-			resultingPlanets[i].shipNum = shipNum
+				fightBattle(p, fs)
+				if planetIsRelevant:
+					if p.owner != 1:
+						p.owner = 1
+						p.shipNum *= -1
+					if p.shipNum < 0:
+						if p._planet_id in orders:
+							for i in xrange(len(orders[p._planet_id])):
+								orderShipNum = orders[p._planet_id][i][2]
+								if orderShipNum >= -p.shipNum:
+									orderShipNum += p.shipNum
+									p.shipNum = 0
+								else:
+									p.shipNum += orderShipNum
+									orderShipNum = 0
+								orders[p._planet_id][i] = orders[p._planet_id][i][0:2] + (orderShipNum,)
+								if p.shipNum >= 0: break
+					availableShips[p._planet_id] = min(availableShips[p._planet_id], p.shipNum)
+					if p.shipNum < 0:
+						reqsForPlanet += [(p._planet_id, time, -p.shipNum)]
+						p.shipNum = 0
+				elif p.owner == 1:
+					# we just owned this planet
+					planetIsRelevant = True
+			if planetIsRelevant:
+				requirements += reqsForPlanet
+		for p,i in izip(resultingPlanets, count(0)):
+			p.shipNum = availableShips[i]
 		
 		requirements.sort(key = itemgetter(1))
-		requirements.sort(key = itemgetter(0))
+		#requirements.sort(key = itemgetter(0))
 		
 		orders = list(chain(*orders.itervalues()))
-		orders += ordersForReqs(requirements, resultingPlanets)
-		orders = mergeOrders(orders)
-		orders = filterObsoleteOrders(orders)
+		reqorders = ordersForReqs(requirements, resultingPlanets)
+		reqorders += ordersForReqs(baserequirements, resultingPlanets)
 		
-		#random.shuffle(orders)
-		orders += ordersForReqs(baserequirements, resultingPlanets)
+		orders = reqorders + orders
 		orders = mergeOrders(orders)
 		orders = filterObsoleteOrders(orders)		
 		random.shuffle(orders)
-		orders,_ = validOrders(orders)
+		
+		orders,value = takeBestShuffledList(orders, evalOrders, 10)
 
-		value = evalOrders(orders)
 		if bestOrders is None or value > bestOrdersEval:
 			bestOrders,bestOrdersEval = list(orders), value
 			print "iter", c, ":", bestOrdersEval

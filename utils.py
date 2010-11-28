@@ -1,5 +1,7 @@
 #!/usr/bin/python
 
+import random
+
 def objRepresentingArgs(obj):
 	for attrib in obj.__dict__:
 		if not attrib.startswith("_"):
@@ -49,3 +51,16 @@ def multidict(iterable, innertype = list, addfunc = list.append):
 			d[key] = innertype()
 		addfunc(d[key], value)
 	return d
+
+def takeBestShuffledList(l, evalFunc, n):
+	l = list(l)
+	bestList = None
+	bestValue = None
+	for i in xrange(n):
+		random.shuffle(l)
+		value = evalFunc(l)
+		if bestList is None or value > bestValue:
+			bestList = list(l)
+			bestValue = value
+	return bestList, bestValue
+
