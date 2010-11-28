@@ -23,7 +23,7 @@ Just a fast try-out but performed really well. It puts many possible next action
 
 This was my final submission. Sadly, it sometimes times out on the server so my rank is quite bad.
 
-[http://ai-contest.com/profile.php?user_id=3897]
+(http://ai-contest.com/profile.php?user_id=3897)
 
 - [Albert Zeyer](http://www.az2000.de)
 
